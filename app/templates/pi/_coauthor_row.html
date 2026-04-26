@@ -1,0 +1,21 @@
+{% set c = c|default({"name": "", "email": "", "percentage": ""}) %}
+<div class="coauthor-row">
+  <div class="form-grid-3">
+    <div class="form-row">
+      <label>Nome *</label>
+      <input type="text" name="coauthor_name" value="{{ c.name }}" required />
+    </div>
+    <div class="form-row">
+      <label>Email *</label>
+      <input type="email" name="coauthor_email" value="{{ c.email }}" required />
+    </div>
+    <div class="form-row">
+      <label>% *</label>
+      <input type="number" name="coauthor_percentage" value="{{ c.percentage }}" min="0" max="100" step="0.01" required />
+    </div>
+  </div>
+  <button type="button" class="btn btn-danger btn-sm"
+          onclick="this.closest('.coauthor-row').remove(); document.dispatchEvent(new Event('input'));">
+    Remover
+  </button>
+</div>

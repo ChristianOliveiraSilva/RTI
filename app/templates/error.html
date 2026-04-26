@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Erro {{ status_code }}{% endblock %}
+{% block content %}
+<div class="centered-card">
+  <div class="card error-card">
+    <div class="error-icon">!</div>
+    <h1>{{ status_code }}</h1>
+    <p>{{ detail }}</p>
+    <a href="/dashboard" class="btn btn-primary">Voltar ao dashboard</a>
+  </div>
+</div>
+{% endblock %}

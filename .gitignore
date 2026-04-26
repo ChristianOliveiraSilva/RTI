@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtualenv
+.venv/
+venv/
+env/
+ENV/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Storage / generated files
+storage/pdfs/*
+!storage/pdfs/.gitkeep
+
+# Logs
+*.log
+logs/
+
+# Alembic (keep migrations, ignore local DBs)
+*.sqlite
+*.sqlite3
+*.db

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Cadastro concluído{% endblock %}
+{% block content %}
+
+<div class="centered-card">
+  <div class="card success-card">
+    <div class="success-icon">✓</div>
+    <h1>{% if already %}Já estava concluído{% else %}Cadastro concluído!{% endif %}</h1>
+    <p>
+      Obrigado, <strong>{{ pa.name }}</strong>.<br>
+      Sua participação na PI <strong>"{{ pa.pi.title }}"</strong> foi confirmada
+      com <strong>{{ pa.percentage|fpercent }}</strong>.
+    </p>
+    <p class="muted small">Você pode fechar esta janela.</p>
+  </div>
+</div>
+
+{% endblock %}

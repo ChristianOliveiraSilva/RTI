@@ -1,0 +1,53 @@
+{% extends "pdfs/_pdf_base.html" %}
+{% block title %}Anexo IV - Cessão de Direitos{% endblock %}
+{% block heading %}ANEXO IV — INSTRUMENTO DE CESSÃO DE DIREITOS{% endblock %}
+{% block body %}
+
+<p class="text-justify">
+  Pelo presente instrumento, os autores abaixo identificados cedem,
+  na proporção de suas respectivas participações, todos os direitos
+  patrimoniais decorrentes da Propriedade Intelectual
+  <strong>"{{ pi.title }}"</strong> ({{ pi.type|pi_type_label }})
+  ao <strong>Instituto Federal de Educação, Ciência e Tecnologia
+  de Mato Grosso do Sul (IFMS)</strong>{% if pi.has_partner %},
+  em conjunto com a instituição parceira <strong>{{ pi.partner_name }}</strong>
+  (CNPJ {{ pi.partner_cnpj or '-' }}){% endif %},
+  observada a legislação vigente.
+</p>
+
+<h2>Coautores e percentuais</h2>
+<table>
+  <thead>
+    <tr><th style="width:6%">#</th><th>Nome</th><th>CPF</th><th style="width:14%">Participação</th></tr>
+  </thead>
+  <tbody>
+    {% set total = namespace(v=0) %}
+    {% for pa in pi.authors %}
+      {% set total.v = total.v + (pa.percentage|float) %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ pa.name }}{% if pa.is_primary %} <em>(principal)</em>{% endif %}</td>
+        <td>{{ pa.profile.cpf if pa.profile else '-' }}</td>
+        <td>{{ pa.percentage|fpercent }}</td>
+      </tr>
+    {% endfor %}
+    <tr>
+      <th colspan="3" style="text-align:right">Total</th>
+      <th>{{ "%.2f"|format(total.v) }}%</th>
+    </tr>
+  </tbody>
+</table>
+
+<p class="text-justify" style="margin-top:14pt;">
+  Os signatários declaram estar cientes e de acordo com os percentuais de
+  participação acima indicados.
+</p>
+
+{% for pa in pi.authors %}
+  <div class="signature" style="margin-top:30pt;">
+    <div class="line">{{ pa.name }}</div>
+    <div class="small">{{ pa.percentage|fpercent }} - {{ pa.email }}</div>
+  </div>
+{% endfor %}
+
+{% endblock %}

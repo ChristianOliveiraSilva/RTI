@@ -1,0 +1,44 @@
+{% extends "pdfs/_pdf_base.html" %}
+{% block title %}Anexo V - Termo de Confidencialidade{% endblock %}
+{% block heading %}ANEXO V — TERMO DE CONFIDENCIALIDADE{% endblock %}
+{% block body %}
+
+{% set p = pa.profile %}
+
+<p class="text-justify">
+  Eu, <strong>{{ pa.name }}</strong>,
+  {% if p %}portador(a) do CPF {{ p.cpf }} e RG {{ p.rg }},{% endif %}
+  na qualidade de coautor(a) da Propriedade Intelectual intitulada
+  <strong>"{{ pi.title }}"</strong>, ora em processo de registro junto ao
+  Instituto Federal de Educação, Ciência e Tecnologia (IFMS), <strong>declaro</strong>
+  que assumo o compromisso de manter <strong>sigilo absoluto</strong> sobre todas as
+  informações técnicas, comerciais, de projeto, dados e quaisquer outros
+  elementos relativos à mencionada Propriedade Intelectual.
+</p>
+
+<p class="text-justify">
+  Comprometo-me a:
+</p>
+<ul>
+  <li>Não divulgar, reproduzir, copiar ou ceder a terceiros qualquer informação confidencial;</li>
+  <li>Utilizar tais informações exclusivamente para os fins relacionados à PI;</li>
+  <li>Adotar as medidas necessárias à preservação do sigilo, mesmo após o término da minha participação;</li>
+  <li>Comunicar imediatamente ao IFMS qualquer suspeita de violação ou vazamento.</li>
+</ul>
+
+<p class="text-justify">
+  A presente obrigação de sigilo tem caráter <strong>permanente</strong> e perdura
+  por prazo indeterminado, mesmo após o encerramento de eventual vínculo com o IFMS.
+</p>
+
+<p class="text-justify small">
+  Aceite registrado eletronicamente em
+  {% if pa.completed_at %}{{ pa.completed_at|fdatetime }}{% else %}—{% endif %}.
+</p>
+
+<div class="signature">
+  <div class="line">{{ pa.name }}</div>
+  <div class="small">Coautor(a)</div>
+</div>
+
+{% endblock %}

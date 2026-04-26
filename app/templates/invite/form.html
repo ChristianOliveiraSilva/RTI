@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}Convite - {{ pi.title }}{% endblock %}
+{% block content %}
+
+{% set s = submitted|default({}) %}
+{% set p = profile %}
+
+<div class="page-head">
+  <div>
+    <h1>Convite como coautor</h1>
+    <p class="muted">
+      Você foi convidado(a) para a PI <strong>"{{ pi.title }}"</strong>
+      com participação de <strong>{{ pa.percentage|fpercent }}</strong>.
+      Preencha seus dados para concluir.
+    </p>
+    <p class="muted small">Convite válido até {{ expires_at|fdatetime }}.</p>
+  </div>
+</div>
+
+{% if errors %}
+  <div class="alert alert-error">
+    <strong>Corrija os erros abaixo:</strong>
+    <ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
+  </div>
+{% endif %}
+
+<form method="post" action="/invite/{{ token }}" class="card form-card">
+
+  <fieldset>
+    <legend>Dados pessoais</legend>
+    <div class="form-grid-2">
+      <div class="form-row">
+        <label>Nome completo</label>
+        <input type="text" value="{{ pa.name }}" readonly />
+      </div>
+      <div class="form-row">
+        <label>Email</label>
+        <input type="email" value="{{ pa.email }}" readonly />
+      </div>
+    </div>
+    <div class="form-grid-2">
+      <div class="form-row">
+        <label>CPF *</label>
+        <input type="text" name="cpf" required
+               value="{{ s.cpf if s else (p.cpf if p else '') }}"
+               placeholder="000.000.000-00" />
+      </div>
+      <div class="form-row">
+        <label>RG *</label>
+        <input type="text" name="rg" required
+               value="{{ s.rg if s else (p.rg if p else '') }}" />
+      </div>
+    </div>
+    <div class="form-grid-3">
+      <div class="form-row">
+        <label>Data de nascimento *</label>
+        <input type="date" name="birth_date" required
+               value="{{ s.birth_date if s else (p.birth_date.isoformat() if p and p.birth_date else '') }}" />
+      </div>
+      <div class="form-row">
+        <label>Nacionalidade *</label>
+        <input type="text" name="nationality" required
+               value="{{ s.nationality if s else (p.nationality if p else 'Brasileira') }}" />
+      </div>
+      <div class="form-row">
+        <label>Estado civil *</label>
+        <select name="marital_status" required>
+          {% set ms = s.marital_status if s else (p.marital_status if p else '') %}
+          {% for opt in ["Solteiro(a)", "Casado(a)", "Divorciado(a)", "Viúvo(a)", "União estável", "Outro"] %}
+            <option value="{{ opt }}" {% if ms == opt %}selected{% endif %}>{{ opt }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <label>Cargo / ocupação *</label>
+      <input type="text" name="occupation" required
+             value="{{ s.occupation if s else (p.occupation if p else '') }}" />
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Contato</legend>
+    <div class="form-grid-2">
+      <div class="form-row">
+        <label>Telefone fixo</label>
+        <input type="text" name="phone"
+               value="{{ s.phone if s else (p.phone if p else '') }}" />
+      </div>
+      <div class="form-row">
+        <label>Celular *</label>
+        <input type="text" name="cellphone" required
+               value="{{ s.cellphone if s else (p.cellphone if p else '') }}"
+               placeholder="(00) 00000-0000" />
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Endereço</legend>
+    <div class="form-grid-3">
+      <div class="form-row col-span-2">
+        <label>Rua *</label>
+        <input type="text" name="address_street" required
+               value="{{ s.address_street if s else (p.address_street if p else '') }}" />
+      </div>
+      <div class="form-row">
+        <label>Número *</label>
+        <input type="text" name="address_number" required
+               value="{{ s.address_number if s else (p.address_number if p else '') }}" />
+      </div>
+    </div>
+    <div class="form-grid-3">
+      <div class="form-row">
+        <label>Bairro *</label>
+        <input type="text" name="address_district" required
+               value="{{ s.address_district if s else (p.address_district if p else '') }}" />
+      </div>
+      <div class="form-row">
+        <label>Cidade *</label>
+        <input type="text" name="address_city" required
+               value="{{ s.address_city if s else (p.address_city if p else '') }}" />
+      </div>
+      <div class="form-row">
+        <label>UF *</label>
+        <input type="text" name="address_state" required maxlength="2"
+               value="{{ s.address_state if s else (p.address_state if p else '') }}" />
+      </div>
+    </div>
+    <div class="form-row">
+      <label>CEP *</label>
+      <input type="text" name="address_zip" required
+             value="{{ s.address_zip if s else (p.address_zip if p else '') }}"
+             placeholder="00000-000" />
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Vínculo institucional</legend>
+    <div class="form-row">
+      <label>Vínculo com IFMS *</label>
+      <select name="ifms_bond" required>
+        <option value="">Selecione...</option>
+        {% set bond = s.ifms_bond if s else (p.ifms_bond.value if p and p.ifms_bond else '') %}
+        {% for k, label in ifms_bonds.items() %}
+          <option value="{{ k }}" {% if bond == k %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Declarações obrigatórias</legend>
+    <label class="checkbox">
+      <input type="checkbox" name="accepted_truth"
+             {% if accepted_truth|default(false) %}checked{% endif %} required />
+      <span>Declaro que as informações prestadas são verdadeiras (Anexo III).</span>
+    </label>
+    <label class="checkbox">
+      <input type="checkbox" name="accepted_confidentiality"
+             {% if accepted_confidentiality|default(false) %}checked{% endif %} required />
+      <span>Aceito o termo de confidencialidade (Anexo V).</span>
+    </label>
+  </fieldset>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Concluir</button>
+  </div>
+</form>
+
+{% endblock %}

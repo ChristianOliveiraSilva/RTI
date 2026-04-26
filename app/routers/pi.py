@@ -1,0 +1,438 @@
+from __future__ import annotations
+
+import logging
+from datetime import datetime, timezone
+from typing import List
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
+from sqlalchemy.orm import Session, selectinload
+
+from app.database import get_db
+from app.deps import require_user
+from app.models import (
+    AuthorDeclaration,
+    AuthorProfile,
+    IfmsBond,
+    PI,
+    PIAuthor,
+    PIAuthorStatus,
+    PIStatus,
+    PIType,
+    User,
+    UserRole,
+)
+from app.services.invitations import create_invitation, send_invitation_email
+from app.templating import IFMS_BOND_LABELS, PI_TYPE_LABELS, templates
+
+logger = logging.getLogger(__name__)
+router = APIRouter()
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _can_view(user: User, pi: PI) -> bool:
+    return user.role == UserRole.admin or pi.owner_id == user.id
+
+
+def _empty_primary() -> dict:
+    return {
+        "cpf": "",
+        "rg": "",
+        "birth_date": "",
+        "nationality": "",
+        "marital_status": "",
+        "occupation": "",
+        "phone": "",
+        "cellphone": "",
+        "address_street": "",
+        "address_number": "",
+        "address_district": "",
+        "address_city": "",
+        "address_state": "",
+        "address_zip": "",
+        "ifms_bond": "",
+    }
+
+
+@router.get("/pis/_coauthor_row", name="pi_coauthor_row", response_class=HTMLResponse)
+async def coauthor_row(request: Request, user: User = Depends(require_user)):
+    return templates.TemplateResponse(
+        request, "pi/_coauthor_row.html",
+        {"c": {"name": "", "email": "", "percentage": ""}},
+    )
+
+
+@router.get("/pis/new", name="pi_new")
+async def pi_new_form(request: Request, user: User = Depends(require_user)):
+    return templates.TemplateResponse(
+        request, "pi/new.html",
+        {
+            "user": user,
+            "pi_types": PI_TYPE_LABELS,
+            "ifms_bonds": IFMS_BOND_LABELS,
+            "errors": [],
+            "form": {
+                "title": "",
+                "type": "software",
+                "description": "",
+                "has_partner": False,
+                "partner_name": "",
+                "partner_cnpj": "",
+                "partner_contact": "",
+                "primary_percentage": "",
+            },
+            "primary": _empty_primary(),
+            "coauthors": [],
+            "accepted_truth": False,
+            "accepted_confidentiality": False,
+        },
+    )
+
+
+@router.post("/pis", name="pi_create")
+async def pi_create(
+    request: Request,
+    background: BackgroundTasks,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_user),
+):
+    form = await request.form()
+
+    # ---- Dados da PI ----
+    title = (form.get("title") or "").strip()
+    pi_type = (form.get("type") or "").strip()
+    description = (form.get("description") or "").strip()
+    has_partner = form.get("has_partner") in ("on", "true", "1")
+    partner_name = (form.get("partner_name") or "").strip() or None
+    partner_cnpj = (form.get("partner_cnpj") or "").strip() or None
+    partner_contact = (form.get("partner_contact") or "").strip() or None
+    primary_percentage = (form.get("primary_percentage") or "").strip()
+
+    # ---- Coautores ----
+    coauthor_names = form.getlist("coauthor_name")
+    coauthor_emails = form.getlist("coauthor_email")
+    coauthor_percentages = form.getlist("coauthor_percentage")
+
+    # ---- Profile do autor principal ----
+    primary = {
+        "cpf": (form.get("cpf") or "").strip(),
+        "rg": (form.get("rg") or "").strip(),
+        "birth_date": (form.get("birth_date") or "").strip(),
+        "nationality": (form.get("nationality") or "").strip(),
+        "marital_status": (form.get("marital_status") or "").strip(),
+        "occupation": (form.get("occupation") or "").strip(),
+        "phone": (form.get("phone") or "").strip(),
+        "cellphone": (form.get("cellphone") or "").strip(),
+        "address_street": (form.get("address_street") or "").strip(),
+        "address_number": (form.get("address_number") or "").strip(),
+        "address_district": (form.get("address_district") or "").strip(),
+        "address_city": (form.get("address_city") or "").strip(),
+        "address_state": (form.get("address_state") or "").strip().upper()[:2],
+        "address_zip": (form.get("address_zip") or "").strip(),
+        "ifms_bond": (form.get("ifms_bond") or "").strip(),
+    }
+    accepted_truth = form.get("accepted_truth") in ("on", "true", "1")
+    accepted_conf = form.get("accepted_confidentiality") in ("on", "true", "1")
+
+    errors: List[str] = []
+
+    # ---- Validações da PI ----
+    if not title:
+        errors.append("Informe o título da PI.")
+    try:
+        pi_type_enum = PIType(pi_type)
+    except ValueError:
+        pi_type_enum = PIType.outro
+        errors.append("Tipo de PI inválido.")
+
+    if has_partner and not partner_name:
+        errors.append("Informe o nome da instituição parceira.")
+
+    try:
+        primary_pct = float(primary_percentage.replace(",", "."))
+    except ValueError:
+        primary_pct = 0.0
+        errors.append("Sua porcentagem (autor principal) é inválida.")
+
+    # ---- Validações do profile do autor principal ----
+    required_profile = [
+        "cpf", "rg", "birth_date", "nationality", "marital_status", "occupation",
+        "cellphone", "address_street", "address_number", "address_district",
+        "address_city", "address_state", "address_zip", "ifms_bond",
+    ]
+    for k in required_profile:
+        if not primary[k]:
+            errors.append(f"Campo obrigatório do autor principal: {k}")
+
+    if primary["address_state"] and len(primary["address_state"]) != 2:
+        errors.append("UF do autor principal deve ter 2 caracteres.")
+
+    primary_bond = None
+    if primary["ifms_bond"]:
+        try:
+            primary_bond = IfmsBond(primary["ifms_bond"])
+        except ValueError:
+            errors.append("Vínculo IFMS do autor principal inválido.")
+
+    primary_bd = None
+    if primary["birth_date"]:
+        try:
+            primary_bd = datetime.strptime(primary["birth_date"], "%Y-%m-%d").date()
+        except ValueError:
+            errors.append("Data de nascimento do autor principal inválida (use AAAA-MM-DD).")
+
+    if not accepted_truth:
+        errors.append("É preciso aceitar a declaração de veracidade (Anexo III).")
+    if not accepted_conf:
+        errors.append("É preciso aceitar o termo de confidencialidade (Anexo V).")
+
+    # ---- Validações dos coautores ----
+    coauthors_clean = []
+    seen_emails = {user.email.lower()}
+    total = primary_pct
+    for nm, em, pc in zip(coauthor_names, coauthor_emails, coauthor_percentages):
+        nm = (nm or "").strip()
+        em = (em or "").strip().lower()
+        pc = (pc or "").strip().replace(",", ".")
+        if not nm and not em and not pc:
+            continue
+        if not nm or not em or not pc:
+            errors.append("Coautor com dados incompletos.")
+            continue
+        if em in seen_emails:
+            errors.append(f"Email duplicado: {em}")
+            continue
+        try:
+            pcv = float(pc)
+        except ValueError:
+            errors.append(f"Porcentagem inválida para {em}.")
+            continue
+        seen_emails.add(em)
+        total += pcv
+        coauthors_clean.append({"name": nm, "email": em, "percentage": pcv})
+
+    if abs(total - 100.0) > 0.01:
+        errors.append(f"A soma das porcentagens deve ser 100% (atual: {total:g}%).")
+
+    # ---- Re-render em caso de erro ----
+    if errors:
+        return templates.TemplateResponse(
+            request, "pi/new.html",
+            {
+                "user": user,
+                "pi_types": PI_TYPE_LABELS,
+                "ifms_bonds": IFMS_BOND_LABELS,
+                "errors": errors,
+                "form": {
+                    "title": title,
+                    "type": pi_type,
+                    "description": description,
+                    "has_partner": has_partner,
+                    "partner_name": partner_name or "",
+                    "partner_cnpj": partner_cnpj or "",
+                    "partner_contact": partner_contact or "",
+                    "primary_percentage": primary_percentage,
+                },
+                "primary": primary,
+                "accepted_truth": accepted_truth,
+                "accepted_confidentiality": accepted_conf,
+                "coauthors": [
+                    {"name": c["name"], "email": c["email"], "percentage": c["percentage"]}
+                    for c in coauthors_clean
+                ] or [
+                    {"name": n, "email": e, "percentage": p}
+                    for n, e, p in zip(coauthor_names, coauthor_emails, coauthor_percentages)
+                    if (n or e or p)
+                ],
+            },
+            status_code=400,
+        )
+
+    # ---- Persistência ----
+    pi = PI(
+        title=title,
+        type=pi_type_enum,
+        description=description or None,
+        has_partner=has_partner,
+        partner_name=partner_name if has_partner else None,
+        partner_cnpj=partner_cnpj if has_partner else None,
+        partner_contact=partner_contact if has_partner else None,
+        owner_id=user.id,
+        status=PIStatus.awaiting_authors,
+    )
+    db.add(pi)
+    db.flush()
+
+    # Autor principal já preenchido => completed e sem convite
+    primary_pa = PIAuthor(
+        pi_id=pi.id,
+        name=user.name,
+        email=user.email.lower(),
+        percentage=primary_pct,
+        is_primary=True,
+        status=PIAuthorStatus.completed,
+        completed_at=_utcnow(),
+    )
+    db.add(primary_pa)
+    db.flush()
+
+    profile_values = {
+        "cpf": primary["cpf"],
+        "rg": primary["rg"],
+        "birth_date": primary_bd,
+        "nationality": primary["nationality"],
+        "marital_status": primary["marital_status"],
+        "occupation": primary["occupation"],
+        "phone": primary["phone"] or None,
+        "cellphone": primary["cellphone"],
+        "address_street": primary["address_street"],
+        "address_number": primary["address_number"],
+        "address_district": primary["address_district"],
+        "address_city": primary["address_city"],
+        "address_state": primary["address_state"],
+        "address_zip": primary["address_zip"],
+        "ifms_bond": primary_bond,
+    }
+    db.add(AuthorProfile(pi_author_id=primary_pa.id, **profile_values))
+    db.add(
+        AuthorDeclaration(
+            pi_author_id=primary_pa.id,
+            accepted_truth=True,
+            accepted_confidentiality=True,
+        )
+    )
+
+    # Coautores: pendentes + convite
+    pa_to_email: list[PIAuthor] = []
+    for c in coauthors_clean:
+        pa = PIAuthor(
+            pi_id=pi.id,
+            name=c["name"],
+            email=c["email"],
+            percentage=c["percentage"],
+            is_primary=False,
+            status=PIAuthorStatus.pending,
+        )
+        db.add(pa)
+        db.flush()
+        pa_to_email.append(pa)
+
+    invs_to_send: list[tuple[int, str]] = []
+    for pa in pa_to_email:
+        inv = create_invitation(db, pa)
+        invs_to_send.append((pa.id, inv.token))
+
+    # Sem coautores? PI já fica completed.
+    if not pa_to_email:
+        pi.status = PIStatus.completed
+        pi.completed_at = _utcnow()
+
+    db.commit()
+
+    async def _send_all():
+        from app.database import SessionLocal
+        from app.models import Invitation as _Inv, PIAuthor as _PIA
+        with SessionLocal() as s:
+            for pa_id, token in invs_to_send:
+                inv = s.query(_Inv).filter(_Inv.token == token).first()
+                pa_db = s.query(_PIA).options(selectinload(_PIA.pi)).get(pa_id)
+                if inv and pa_db:
+                    try:
+                        await send_invitation_email(pa_db, inv)
+                    except Exception as exc:  # noqa: BLE001
+                        logger.exception("Falha ao enviar convite: %s", exc)
+
+    if invs_to_send:
+        background.add_task(_send_all)
+
+    return RedirectResponse(url=f"/pis/{pi.id}", status_code=303)
+
+
+@router.get("/pis/{pi_id}", name="pi_show")
+async def pi_show(
+    pi_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_user),
+):
+    pi = (
+        db.query(PI)
+        .options(
+            selectinload(PI.authors).selectinload(PIAuthor.invitations),
+            selectinload(PI.documents),
+            selectinload(PI.owner),
+        )
+        .filter(PI.id == pi_id)
+        .first()
+    )
+    if not pi:
+        raise HTTPException(status_code=404, detail="PI não encontrada")
+    if not _can_view(user, pi):
+        raise HTTPException(status_code=403, detail="Sem permissão")
+
+    all_done = all(pa.status == PIAuthorStatus.completed for pa in pi.authors)
+
+    return templates.TemplateResponse(
+        request, "pi/show.html",
+        {
+            "user": user,
+            "pi": pi,
+            "all_done": all_done,
+            "is_owner": pi.owner_id == user.id,
+            "is_admin": user.role == UserRole.admin,
+        },
+    )
+
+
+@router.post("/pis/{pi_id}/authors/{pa_id}/resend", name="pi_resend_invite")
+async def pi_resend_invite(
+    pi_id: int,
+    pa_id: int,
+    request: Request,
+    background: BackgroundTasks,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_user),
+):
+    pi = db.query(PI).filter(PI.id == pi_id).first()
+    if not pi:
+        raise HTTPException(status_code=404)
+    if not _can_view(user, pi):
+        raise HTTPException(status_code=403)
+    pa = (
+        db.query(PIAuthor)
+        .options(selectinload(PIAuthor.pi))
+        .filter(PIAuthor.id == pa_id, PIAuthor.pi_id == pi_id)
+        .first()
+    )
+    if not pa:
+        raise HTTPException(status_code=404)
+    if pa.status == PIAuthorStatus.completed:
+        raise HTTPException(status_code=400, detail="Coautor já concluído")
+
+    inv = create_invitation(db, pa)
+    db.commit()
+
+    inv_id = inv.id
+    pa_id_local = pa.id
+
+    async def _do_send():
+        from app.database import SessionLocal
+        from app.models import Invitation as _Inv, PIAuthor as _PIA
+        with SessionLocal() as s:
+            inv2 = s.query(_Inv).filter(_Inv.id == inv_id).first()
+            pa2 = s.query(_PIA).options(selectinload(_PIA.pi)).get(pa_id_local)
+            try:
+                await send_invitation_email(pa2, inv2)
+            except Exception as exc:  # noqa: BLE001
+                logger.exception("Reenvio falhou: %s", exc)
+
+    background.add_task(_do_send)
+
+    if request.headers.get("HX-Request"):
+        return HTMLResponse(
+            f"<span class='ok'>Convite reenviado para {pa.email}</span>"
+        )
+    return RedirectResponse(url=f"/pis/{pi_id}", status_code=303)

@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <h1>Olá, {{ user.name.split(" ")[0] }} 👋</h1>
+    <p class="muted">
+      {% if is_admin %}
+        Você está visualizando <strong>todas as PIs</strong> do sistema (modo admin).
+      {% else %}
+        Aqui estão as PIs em que você é o responsável.
+      {% endif %}
+    </p>
+  </div>
+  <div>
+    <a href="/pis/new" class="btn btn-primary">+ Nova PI</a>
+  </div>
+</div>
+
+{% if not pis %}
+  <div class="empty-state">
+    <h2>Nenhuma PI cadastrada ainda</h2>
+    <p class="muted">Comece criando sua primeira Propriedade Intelectual.</p>
+    <a href="/pis/new" class="btn btn-primary">Criar minha primeira PI</a>
+  </div>
+{% else %}
+  <div class="cards-grid">
+    {% for pi in pis %}
+      {% set total = pi.authors|length %}
+      {% set done = pi.authors|selectattr("status.value", "equalto", "completed")|list|length %}
+      <a href="/pis/{{ pi.id }}" class="card pi-card">
+        <div class="pi-card-head">
+          <span class="badge badge-{{ pi.status.value }}">{{ pi.status|status_label }}</span>
+          <span class="muted small">{{ pi.created_at|fdatetime }}</span>
+        </div>
+        <h3>{{ pi.title }}</h3>
+        <div class="pi-meta">
+          <span class="chip">{{ pi.type|pi_type_label }}</span>
+          {% if pi.has_partner %}
+            <span class="chip chip-info">Com parceria</span>
+          {% endif %}
+        </div>
+        <div class="progress">
+          <div class="progress-bar" style="width: {{ (done * 100 / total) if total else 0 }}%"></div>
+        </div>
+        <div class="pi-card-foot">
+          <span><strong>{{ done }}/{{ total }}</strong> coautores concluídos</span>
+          {% if is_admin %}
+            <span class="muted small">por {{ pi.owner.email }}</span>
+          {% endif %}
+        </div>
+      </a>
+    {% endfor %}
+  </div>
+{% endif %}
+
+{% endblock %}

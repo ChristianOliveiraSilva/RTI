@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}{{ pi.title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <a href="/dashboard" class="muted small">← voltar</a>
+    <h1>{{ pi.title }}</h1>
+    <div class="pi-meta">
+      <span class="badge badge-{{ pi.status.value }}">{{ pi.status|status_label }}</span>
+      <span class="chip">{{ pi.type|pi_type_label }}</span>
+      {% if pi.has_partner %}<span class="chip chip-info">Com parceria</span>{% endif %}
+      <span class="muted small">criada em {{ pi.created_at|fdatetime }}</span>
+      {% if pi.completed_at %}
+        <span class="muted small">concluída em {{ pi.completed_at|fdatetime }}</span>
+      {% endif %}
+    </div>
+  </div>
+  <div class="actions">
+    {% if all_done %}
+      <form method="post" action="/pis/{{ pi.id }}/pdfs/generate" style="display:inline">
+        <button class="btn btn-primary">{% if pi.documents %}Regenerar PDFs{% else %}Gerar PDFs{% endif %}</button>
+      </form>
+      {% if pi.documents %}
+        <a class="btn btn-ghost" href="/pis/{{ pi.id }}/documents.zip">Baixar tudo (.zip)</a>
+      {% endif %}
+    {% else %}
+      <button class="btn btn-primary" disabled title="Aguardando todos os coautores">Gerar PDFs</button>
+    {% endif %}
+  </div>
+</div>
+
+<div class="grid-2">
+  <section class="card">
+    <h2>Informações da PI</h2>
+    <dl class="dl">
+      <dt>Título</dt><dd>{{ pi.title }}</dd>
+      <dt>Tipo</dt><dd>{{ pi.type|pi_type_label }}</dd>
+      <dt>Possui parceria</dt><dd>{{ "Sim" if pi.has_partner else "Não" }}</dd>
+      {% if pi.has_partner %}
+        <dt>Instituição</dt><dd>{{ pi.partner_name or "-" }}</dd>
+        <dt>CNPJ</dt><dd>{{ pi.partner_cnpj or "-" }}</dd>
+        <dt>Contato</dt><dd>{{ pi.partner_contact or "-" }}</dd>
+      {% endif %}
+      <dt>Responsável</dt><dd>{{ pi.owner.name }} ({{ pi.owner.email }})</dd>
+      {% if pi.description %}
+        <dt>Descrição</dt><dd>{{ pi.description }}</dd>
+      {% endif %}
+    </dl>
+  </section>
+
+  <section class="card">
+    <h2>Coautores ({{ pi.authors|length }})</h2>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Nome</th><th>Email</th><th>%</th><th>Status</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for pa in pi.authors %}
+          <tr>
+            <td>
+              {{ pa.name }}
+              {% if pa.is_primary %}<span class="chip chip-primary">principal</span>{% endif %}
+            </td>
+            <td>{{ pa.email }}</td>
+            <td>{{ pa.percentage|fpercent }}</td>
+            <td>
+              {% if pa.status.value == "completed" %}
+                <span class="badge badge-completed">Concluído</span>
+                {% if pa.completed_at %}
+                  <div class="muted small">{{ pa.completed_at|fdatetime }}</div>
+                {% endif %}
+              {% else %}
+                <span class="badge badge-pending">Pendente</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if pa.status.value != "completed" %}
+                <button class="btn btn-ghost btn-sm"
+                        hx-post="/pis/{{ pi.id }}/authors/{{ pa.id }}/resend"
+                        hx-target="#resend-msg-{{ pa.id }}"
+                        hx-swap="innerHTML">
+                  Reenviar convite
+                </button>
+                <span id="resend-msg-{{ pa.id }}" class="small"></span>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</div>
+
+<section class="card">
+  <h2>Documentos gerados</h2>
+  {% if not pi.documents %}
+    <p class="muted">
+      {% if all_done %}
+        Nenhum PDF foi gerado ainda. Clique em "Gerar PDFs" acima.
+      {% else %}
+        Os PDFs serão habilitados quando todos os coautores concluírem o cadastro.
+      {% endif %}
+    </p>
+  {% else %}
+    <table class="data-table">
+      <thead>
+        <tr><th>Documento</th><th>Coautor</th><th>Gerado em</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for d in pi.documents %}
+          <tr>
+            <td><strong>{{ d.type.value|upper|replace("_"," ") }}</strong></td>
+            <td>
+              {% if d.pi_author_id %}
+                {% for pa in pi.authors if pa.id == d.pi_author_id %}
+                  {{ pa.name }}
+                {% endfor %}
+              {% else %}
+                — (consolidado)
+              {% endif %}
+            </td>
+            <td>{{ d.created_at|fdatetime }}</td>
+            <td>
+              <a class="btn btn-ghost btn-sm" href="/pis/{{ pi.id }}/documents/{{ d.id }}/download">
+                Baixar PDF
+              </a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+</section>
+
+{% endblock %}

@@ -1,0 +1,34 @@
+{% extends "pdfs/_pdf_base.html" %}
+{% block title %}Anexo III - Declaração de Veracidade{% endblock %}
+{% block heading %}ANEXO III — DECLARAÇÃO DE VERACIDADE DAS INFORMAÇÕES{% endblock %}
+{% block body %}
+
+{% set p = pa.profile %}
+
+<p class="text-justify">
+  Eu, <strong>{{ pa.name }}</strong>,
+  {% if p %}portador(a) do CPF {{ p.cpf }} e RG {{ p.rg }},{% endif %}
+  na qualidade de coautor(a) da Propriedade Intelectual intitulada
+  <strong>"{{ pi.title }}"</strong>, com participação de
+  <strong>{{ pa.percentage|fpercent }}</strong>,
+  <strong>declaro</strong>, sob as penas da lei, que todas as informações
+  prestadas no formulário de cadastro são <strong>verdadeiras</strong>,
+  responsabilizando-me civil e criminalmente pelo seu conteúdo.
+</p>
+
+<p class="text-justify">
+  Comprometo-me, ainda, a comunicar imediatamente ao Núcleo de Inovação
+  Tecnológica do IFMS qualquer alteração nos dados aqui informados.
+</p>
+
+<p class="text-justify small">
+  Aceite registrado eletronicamente em
+  {% if pa.completed_at %}{{ pa.completed_at|fdatetime }}{% else %}—{% endif %}.
+</p>
+
+<div class="signature">
+  <div class="line">{{ pa.name }}</div>
+  <div class="small">Coautor(a)</div>
+</div>
+
+{% endblock %}

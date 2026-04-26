@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Convite inválido{% endblock %}
+{% block content %}
+
+<div class="centered-card">
+  <div class="card error-card">
+    <div class="error-icon">!</div>
+    <h1>Convite inválido ou expirado</h1>
+    <p class="muted">
+      Este link de convite não é mais válido. Ele pode ter expirado (48h)
+      ou já ter sido utilizado.
+    </p>
+    <p class="muted small">
+      Solicite ao responsável da PI o reenvio do convite.
+    </p>
+  </div>
+</div>
+
+{% endblock %}

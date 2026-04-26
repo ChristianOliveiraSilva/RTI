@@ -1,0 +1,47 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: rpi_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-rpi}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rpi_password}
+      POSTGRES_DB: ${POSTGRES_DB:-rpi}
+    volumes:
+      - rpi_pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-rpi} -d ${POSTGRES_DB:-rpi}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    container_name: rpi_app
+    restart: unless-stopped
+    entrypoint: ["bash", "/app/scripts/entrypoint.sh"]
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./:/app
+      - rpi_pdfs:/app/storage/pdfs
+
+  adminer:
+    image: adminer:latest
+    container_name: rpi_adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+
+volumes:
+  rpi_pgdata:
+  rpi_pdfs:

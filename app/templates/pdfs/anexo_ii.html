@@ -1,0 +1,46 @@
+{% extends "pdfs/_pdf_base.html" %}
+{% block title %}Anexo II - Dados dos Autores{% endblock %}
+{% block heading %}ANEXO II — DADOS DOS AUTORES{% endblock %}
+{% block body %}
+
+<h2>Identificação da Propriedade Intelectual</h2>
+<table>
+  <tr><th style="width:30%">Título</th><td>{{ pi.title }}</td></tr>
+  <tr><th>Tipo</th><td>{{ pi.type|pi_type_label }}</td></tr>
+  <tr><th>Possui parceria</th><td>{{ "Sim" if pi.has_partner else "Não" }}</td></tr>
+  {% if pi.has_partner %}
+    <tr><th>Instituição parceira</th><td>{{ pi.partner_name or '-' }}</td></tr>
+    <tr><th>CNPJ</th><td>{{ pi.partner_cnpj or '-' }}</td></tr>
+    <tr><th>Contato</th><td>{{ pi.partner_contact or '-' }}</td></tr>
+  {% endif %}
+</table>
+
+{% for pa in pi.authors %}
+  {% set p = pa.profile %}
+  <h2>Autor {{ loop.index }}{% if pa.is_primary %} (principal){% endif %}</h2>
+  <table>
+    <tr><th style="width:30%">Nome</th><td>{{ pa.name }}</td></tr>
+    <tr><th>Email</th><td>{{ pa.email }}</td></tr>
+    <tr><th>CPF</th><td>{{ p.cpf if p else '-' }}</td></tr>
+    <tr><th>RG</th><td>{{ p.rg if p else '-' }}</td></tr>
+    <tr><th>Data de nascimento</th><td>{{ p.birth_date|fdate if p else '-' }}</td></tr>
+    <tr><th>Nacionalidade</th><td>{{ p.nationality if p else '-' }}</td></tr>
+    <tr><th>Estado civil</th><td>{{ p.marital_status if p else '-' }}</td></tr>
+    <tr><th>Cargo / ocupação</th><td>{{ p.occupation if p else '-' }}</td></tr>
+    <tr><th>Telefone</th><td>{{ (p.phone or '-') if p else '-' }}</td></tr>
+    <tr><th>Celular</th><td>{{ p.cellphone if p else '-' }}</td></tr>
+    <tr>
+      <th>Endereço</th>
+      <td>
+        {% if p %}
+          {{ p.address_street }}, {{ p.address_number }} - {{ p.address_district }}<br>
+          {{ p.address_city }}/{{ p.address_state }} - CEP {{ p.address_zip }}
+        {% else %}-{% endif %}
+      </td>
+    </tr>
+    <tr><th>Vínculo IFMS</th><td>{{ p.ifms_bond|ifms_bond_label if p else '-' }}</td></tr>
+    <tr><th>Participação</th><td>{{ pa.percentage|fpercent }}</td></tr>
+  </table>
+{% endfor %}
+
+{% endblock %}

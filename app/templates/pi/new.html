@@ -1,0 +1,265 @@
+{% extends "base.html" %}
+{% block title %}Nova PI{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <h1>Nova Propriedade Intelectual</h1>
+    <p class="muted">Preencha as informações da PI, seus dados como autor principal e adicione os coautores.</p>
+  </div>
+  <div>
+    <a href="/dashboard" class="btn btn-ghost">Cancelar</a>
+  </div>
+</div>
+
+{% if errors %}
+  <div class="alert alert-error">
+    <strong>Não foi possível salvar:</strong>
+    <ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
+  </div>
+{% endif %}
+
+<form method="post" action="/pis" class="card form-card" id="pi-form">
+
+  <fieldset>
+    <legend>Dados da PI</legend>
+
+    <div class="form-row">
+      <label>Título *</label>
+      <input type="text" name="title" required value="{{ form.title }}" placeholder="Ex: Sistema X para gestão de Y" />
+    </div>
+
+    <div class="form-grid-2">
+      <div class="form-row">
+        <label>Tipo *</label>
+        <select name="type" required>
+          {% for k, label in pi_types.items() %}
+            <option value="{{ k }}" {% if form.type == k %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Sua porcentagem (%) *</label>
+        <input type="number" name="primary_percentage" min="0" max="100" step="0.01" required
+               value="{{ form.primary_percentage }}" placeholder="ex: 50" />
+      </div>
+    </div>
+
+    <div class="form-row">
+      <label>Descrição (opcional)</label>
+      <textarea name="description" rows="3" placeholder="Breve descrição">{{ form.description }}</textarea>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Parceria com instituição</legend>
+
+    <label class="checkbox">
+      <input type="checkbox" name="has_partner" id="has_partner"
+             {% if form.has_partner %}checked{% endif %}
+             onchange="document.getElementById('partner-block').style.display = this.checked ? 'block' : 'none';" />
+      <span>Possui instituição parceira</span>
+    </label>
+
+    <div id="partner-block" style="{% if not form.has_partner %}display:none{% endif %};">
+      <div class="form-grid-2">
+        <div class="form-row">
+          <label>Nome da instituição</label>
+          <input type="text" name="partner_name" value="{{ form.partner_name }}" />
+        </div>
+        <div class="form-row">
+          <label>CNPJ</label>
+          <input type="text" name="partner_cnpj" value="{{ form.partner_cnpj }}" placeholder="00.000.000/0000-00" />
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Contato (responsável / email / telefone)</label>
+        <input type="text" name="partner_contact" value="{{ form.partner_contact }}" />
+      </div>
+    </div>
+  </fieldset>
+
+  {# ============================================================== #}
+  {# AUTOR PRINCIPAL — preenche author_profiles direto neste form    #}
+  {# ============================================================== #}
+
+  <fieldset>
+    <legend>Seus dados (autor principal)</legend>
+
+    <div class="form-grid-2">
+      <div class="form-row">
+        <label>Nome completo</label>
+        <input type="text" value="{{ user.name }}" readonly />
+      </div>
+      <div class="form-row">
+        <label>Email</label>
+        <input type="email" value="{{ user.email }}" readonly />
+      </div>
+    </div>
+
+    <div class="form-grid-2">
+      <div class="form-row">
+        <label>CPF *</label>
+        <input type="text" name="cpf" required value="{{ primary.cpf }}" placeholder="000.000.000-00" />
+      </div>
+      <div class="form-row">
+        <label>RG *</label>
+        <input type="text" name="rg" required value="{{ primary.rg }}" />
+      </div>
+    </div>
+
+    <div class="form-grid-3">
+      <div class="form-row">
+        <label>Data de nascimento *</label>
+        <input type="date" name="birth_date" required value="{{ primary.birth_date }}" />
+      </div>
+      <div class="form-row">
+        <label>Nacionalidade *</label>
+        <input type="text" name="nationality" required
+               value="{{ primary.nationality or 'Brasileira' }}" />
+      </div>
+      <div class="form-row">
+        <label>Estado civil *</label>
+        <select name="marital_status" required>
+          {% for opt in ["Solteiro(a)", "Casado(a)", "Divorciado(a)", "Viúvo(a)", "União estável", "Outro"] %}
+            <option value="{{ opt }}" {% if primary.marital_status == opt %}selected{% endif %}>{{ opt }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <label>Cargo / ocupação *</label>
+      <input type="text" name="occupation" required value="{{ primary.occupation }}" />
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Contato</legend>
+    <div class="form-grid-2">
+      <div class="form-row">
+        <label>Telefone fixo</label>
+        <input type="text" name="phone" value="{{ primary.phone }}" />
+      </div>
+      <div class="form-row">
+        <label>Celular *</label>
+        <input type="text" name="cellphone" required value="{{ primary.cellphone }}"
+               placeholder="(00) 00000-0000" />
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Endereço</legend>
+    <div class="form-grid-3">
+      <div class="form-row col-span-2">
+        <label>Rua *</label>
+        <input type="text" name="address_street" required value="{{ primary.address_street }}" />
+      </div>
+      <div class="form-row">
+        <label>Número *</label>
+        <input type="text" name="address_number" required value="{{ primary.address_number }}" />
+      </div>
+    </div>
+    <div class="form-grid-3">
+      <div class="form-row">
+        <label>Bairro *</label>
+        <input type="text" name="address_district" required value="{{ primary.address_district }}" />
+      </div>
+      <div class="form-row">
+        <label>Cidade *</label>
+        <input type="text" name="address_city" required value="{{ primary.address_city }}" />
+      </div>
+      <div class="form-row">
+        <label>UF *</label>
+        <input type="text" name="address_state" required maxlength="2" value="{{ primary.address_state }}" />
+      </div>
+    </div>
+    <div class="form-row">
+      <label>CEP *</label>
+      <input type="text" name="address_zip" required value="{{ primary.address_zip }}"
+             placeholder="00000-000" />
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Vínculo institucional</legend>
+    <div class="form-row">
+      <label>Vínculo com IFMS *</label>
+      <select name="ifms_bond" required>
+        <option value="">Selecione...</option>
+        {% for k, label in ifms_bonds.items() %}
+          <option value="{{ k }}" {% if primary.ifms_bond == k %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Declarações obrigatórias</legend>
+    <label class="checkbox">
+      <input type="checkbox" name="accepted_truth"
+             {% if accepted_truth %}checked{% endif %} required />
+      <span>Declaro que as informações prestadas são verdadeiras (Anexo III).</span>
+    </label>
+    <label class="checkbox">
+      <input type="checkbox" name="accepted_confidentiality"
+             {% if accepted_confidentiality %}checked{% endif %} required />
+      <span>Aceito o termo de confidencialidade (Anexo V).</span>
+    </label>
+  </fieldset>
+
+  {# ============================================================== #}
+  {# COAUTORES (recebem convite por email)                           #}
+  {# ============================================================== #}
+
+  <fieldset>
+    <legend>Coautores</legend>
+    <p class="muted small">
+      Cada coautor receberá um email com link para preencher o cadastro completo.
+      A soma das porcentagens (suas + coautores) deve ser exatamente <strong>100%</strong>.
+    </p>
+
+    <div id="coauthors-list">
+      {% if coauthors %}
+        {% for c in coauthors %}
+          {% include "pi/_coauthor_row.html" %}
+        {% endfor %}
+      {% endif %}
+    </div>
+
+    <button type="button" class="btn btn-ghost btn-sm"
+            hx-get="/pis/_coauthor_row"
+            hx-target="#coauthors-list"
+            hx-swap="beforeend">
+      + Adicionar coautor
+    </button>
+  </fieldset>
+
+  <div class="form-actions">
+    <a href="/dashboard" class="btn btn-ghost">Cancelar</a>
+    <button type="submit" class="btn btn-primary">Criar PI e enviar convites</button>
+  </div>
+</form>
+
+<script>
+  function recompute() {
+    const inputs = document.querySelectorAll('input[name="coauthor_percentage"], input[name="primary_percentage"]');
+    let total = 0;
+    inputs.forEach(i => total += parseFloat((i.value||"0").replace(",", ".")) || 0);
+    const el = document.getElementById('total-percent');
+    if (el) {
+      el.textContent = total.toFixed(2) + '%';
+      el.className = Math.abs(total - 100) < 0.01 ? 'ok' : 'warn';
+    }
+  }
+  document.addEventListener('input', recompute);
+  document.body.addEventListener('htmx:afterSwap', recompute);
+</script>
+
+<div class="sticky-total">
+  Soma das porcentagens: <span id="total-percent" class="warn">0%</span>
+  <small class="muted">(deve ser exatamente 100%)</small>
+</div>
+
+{% endblock %}
