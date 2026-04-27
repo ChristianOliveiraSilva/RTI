@@ -7,22 +7,22 @@
     <h1>Olá, {{ user.name.split(" ")[0] }} 👋</h1>
     <p class="muted">
       {% if is_admin %}
-        Você está visualizando <strong>todas as PIs</strong> do sistema (modo admin).
+        Você está visualizando <strong>todas as propriedades intelectuais</strong> do sistema (modo admin).
       {% else %}
-        Aqui estão as PIs em que você é o responsável.
+        Aqui estão as propriedades intelectuais em que você é o responsável.
       {% endif %}
     </p>
   </div>
   <div>
-    <a href="/pis/new" class="btn btn-primary">+ Nova PI</a>
+    <a href="/pis/new" class="btn btn-primary">+ Nova Propriedade Intelectual</a>
   </div>
 </div>
 
 {% if not pis %}
   <div class="empty-state">
-    <h2>Nenhuma PI cadastrada ainda</h2>
+    <h2>Nenhuma Propriedade Intelectual cadastrada ainda</h2>
     <p class="muted">Comece criando sua primeira Propriedade Intelectual.</p>
-    <a href="/pis/new" class="btn btn-primary">Criar minha primeira PI</a>
+    <a href="/pis/new" class="btn btn-primary">Criar minha primeira Propriedade Intelectual</a>
   </div>
 {% else %}
   <div class="cards-grid">

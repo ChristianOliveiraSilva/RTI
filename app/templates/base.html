@@ -3,7 +3,9 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>{% block title %}Registro de PI - IFMS{% endblock %}</title>
+  <link rel="icon" href="/static/images/if-logo.png" type="image/png" sizes="any" />
+  <link rel="apple-touch-icon" href="/static/images/if-logo.png" />
+  <title>{% block title %}Registro de Propriedade Intelectual - IFMS{% endblock %}</title>
   <link rel="stylesheet" href="/static/css/styles.css" />
   <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
 </head>
@@ -11,13 +13,13 @@
   <header class="topbar">
     <div class="container topbar-inner">
       <a class="brand" href="/dashboard">
-        <span class="brand-mark">PI</span>
+        <img class="brand-logo" src="/static/images/if-logo.png" width="40" height="40" alt="Instituto Federal" />
         <span class="brand-text">Registro de Propriedade Intelectual</span>
       </a>
       <nav class="topnav">
         {% if request.session.get("user_id") %}
           <a href="/dashboard">Dashboard</a>
-          <a href="/pis/new" class="btn btn-primary btn-sm">Nova PI</a>
+          <a href="/pis/new">Nova PI</a>
           <a href="/logout" class="muted">Sair</a>
         {% else %}
           <a href="/login">Entrar</a>
@@ -30,10 +32,12 @@
     {% block content %}{% endblock %}
   </main>
 
+  {% block footer %}
   <footer class="footer">
     <div class="container">
       <small>&copy; {{ 2026 }} IFMS - Registro de Propriedade Intelectual</small>
     </div>
   </footer>
+  {% endblock %}
 </body>
 </html>
