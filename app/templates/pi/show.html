@@ -10,9 +10,9 @@
       <span class="badge badge-{{ pi.status.value }}">{{ pi.status|status_label }}</span>
       <span class="chip">{{ pi.type|pi_type_label }}</span>
       {% if pi.has_partner %}<span class="chip chip-info">Com parceria</span>{% endif %}
-      <span class="muted small">criada em {{ pi.created_at|fdatetime }}</span>
+      <span class="muted small">criada em {{ pi.created_at|fdatetime_ms }}</span>
       {% if pi.completed_at %}
-        <span class="muted small">concluída em {{ pi.completed_at|fdatetime }}</span>
+        <span class="muted small">concluída em {{ pi.completed_at|fdatetime_ms }}</span>
       {% endif %}
     </div>
   </div>
@@ -22,7 +22,9 @@
         <button class="btn btn-primary">{% if pi.documents %}Regenerar PDFs{% else %}Gerar PDFs{% endif %}</button>
       </form>
       {% if pi.documents %}
-        <a class="btn btn-ghost" href="/pis/{{ pi.id }}/documents.zip">Baixar tudo (.zip)</a>
+        <a href="/pis/{{ pi.id }}/documents.zip">
+          <button class="btn btn-ghost" type="button">Baixar tudo (.zip)</button>
+        </a>
       {% endif %}
     {% else %}
       <button class="btn btn-primary" disabled title="Aguardando todos os coautores">Gerar PDFs</button>
@@ -30,71 +32,68 @@
   </div>
 </div>
 
-<div class="grid-2">
-  <section class="card">
-    <h2>Informações da Propriedade Intelectual</h2>
-    <dl class="dl">
-      <dt>Título</dt><dd>{{ pi.title }}</dd>
-      <dt>Tipo</dt><dd>{{ pi.type|pi_type_label }}</dd>
-      <dt>Possui parceria</dt><dd>{{ "Sim" if pi.has_partner else "Não" }}</dd>
-      {% if pi.has_partner %}
-        <dt>Instituição</dt><dd>{{ pi.partner_name or "-" }}</dd>
-        <dt>CNPJ</dt><dd>{{ pi.partner_cnpj or "-" }}</dd>
-        <dt>Contato</dt><dd>{{ pi.partner_contact or "-" }}</dd>
-      {% endif %}
-      <dt>Responsável</dt><dd>{{ pi.owner.name }} ({{ pi.owner.email }})</dd>
-      {% if pi.description %}
-        <dt>Descrição</dt><dd>{{ pi.description }}</dd>
-      {% endif %}
-    </dl>
-  </section>
-
-  <section class="card">
-    <h2>Coautores ({{ pi.authors|length }})</h2>
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>Nome</th><th>Email</th><th>%</th><th>Status</th><th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for pa in pi.authors %}
-          <tr>
-            <td>
-              {{ pa.name }}
-              {% if pa.is_primary %}<span class="chip chip-primary">principal</span>{% endif %}
-            </td>
-            <td>{{ pa.email }}</td>
-            <td>{{ pa.percentage|fpercent }}</td>
-            <td>
-              {% if pa.status.value == "completed" %}
-                <span class="badge badge-completed">Concluído</span>
-                {% if pa.completed_at %}
-                  <div class="muted small">{{ pa.completed_at|fdatetime }}</div>
-                {% endif %}
-              {% else %}
-                <span class="badge badge-pending">Pendente</span>
-              {% endif %}
-            </td>
-            <td>
-              {% if pa.status.value != "completed" %}
-                <button class="btn btn-ghost btn-sm"
-                        hx-post="/pis/{{ pi.id }}/authors/{{ pa.id }}/resend"
-                        hx-target="#resend-msg-{{ pa.id }}"
-                        hx-swap="innerHTML">
-                  Reenviar convite
-                </button>
-                <span id="resend-msg-{{ pa.id }}" class="small"></span>
-              {% endif %}
-            </td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </section>
-</div>
-
 <section class="card">
+  <h2>Informações da Propriedade Intelectual</h2>
+  <dl class="dl">
+    <dt>Título</dt><dd>{{ pi.title }}</dd>
+    <dt>Tipo</dt><dd>{{ pi.type|pi_type_label }}</dd>
+    <dt>Possui parceria</dt><dd>{{ "Sim" if pi.has_partner else "Não" }}</dd>
+    {% if pi.has_partner %}
+      <dt>Instituição</dt><dd>{{ pi.partner_name or "-" }}</dd>
+      <dt>CNPJ</dt><dd>{{ pi.partner_cnpj or "-" }}</dd>
+      <dt>Contato</dt><dd>{{ pi.partner_contact or "-" }}</dd>
+    {% endif %}
+    <dt>Responsável</dt><dd>{{ pi.owner.name }} ({{ pi.owner.email }})</dd>
+    {% if pi.description %}
+      <dt>Descrição</dt><dd>{{ pi.description }}</dd>
+    {% endif %}
+  </dl>
+</section>
+
+<section class="card mt-2">
+  <h2>Participantes ({{ pi.authors|length }})</h2>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Nome</th><th>Email</th><th>%</th><th>Status</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for pa in pi.authors %}
+        <tr>
+          <td>
+            {{ pa.name }}
+            {% if pa.is_primary %}<span class="chip chip-primary">autor principal</span>{% endif %}
+          </td>
+          <td>{{ pa.email }}</td>
+          <td>{{ pa.percentage|fpercent }}</td>
+          <td>
+            {% if pa.status.value == "completed" %}
+              <span class="badge badge-completed">Concluído</span>
+              {% if pa.completed_at %}
+                <div class="muted small">{{ pa.completed_at|fdatetime_ms }}</div>
+              {% endif %}
+            {% else %}
+              <span class="badge badge-pending">Pendente</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if pa.status.value != "completed" %}
+              <button type="button" class="btn btn-ghost btn-sm"
+                      hx-post="/pis/{{ pi.id }}/authors/{{ pa.id }}/resend"
+                      hx-target="this"
+                      hx-swap="outerHTML">
+                Reenviar convite
+              </button>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="card mt-2">
   <h2>Documentos gerados</h2>
   {% if not pi.documents %}
     <p class="muted">
@@ -119,10 +118,10 @@
                   {{ pa.name }}
                 {% endfor %}
               {% else %}
-                — (consolidado)
+                Em conjunto
               {% endif %}
             </td>
-            <td>{{ d.created_at|fdatetime }}</td>
+            <td>{{ d.created_at|fdatetime_ms }}</td>
             <td>
               <a class="btn btn-ghost btn-sm" href="/pis/{{ pi.id }}/documents/{{ d.id }}/download">
                 Baixar PDF
@@ -133,6 +132,56 @@
       </tbody>
     </table>
   {% endif %}
+</section>
+
+<section class="card mt-2">
+  <h2>Documentos pessoais do autor e coautores</h2>
+  <table class="data-table">
+    <thead>
+      <tr><th>Autor</th><th>CPF</th><th>RG</th><th>Enviado em</th></tr>
+    </thead>
+    <tbody>
+      {% for pa in pi.authors %}
+        {% set cpf_doc = (pa.personal_documents | selectattr("type.value", "equalto", "cpf") | list | first) %}
+        {% set rg_doc = (pa.personal_documents | selectattr("type.value", "equalto", "rg") | list | first) %}
+        <tr>
+          <td>
+            {{ pa.name }}
+            {% if pa.is_primary %}<span class="chip chip-primary">autor principal</span>{% endif %}
+          </td>
+          <td>
+            {% if cpf_doc %}
+              <a class="btn btn-ghost btn-sm" href="/pis/{{ pi.id }}/authors/{{ pa.id }}/personal-docs/cpf/download">
+                Baixar
+              </a>
+            {% else %}
+              —
+            {% endif %}
+          </td>
+          <td>
+            {% if rg_doc %}
+              <a class="btn btn-ghost btn-sm" href="/pis/{{ pi.id }}/authors/{{ pa.id }}/personal-docs/rg/download">
+                Baixar
+              </a>
+            {% else %}
+              —
+            {% endif %}
+          </td>
+          <td>
+            {% if cpf_doc and rg_doc %}
+              {{ (cpf_doc.created_at if cpf_doc.created_at >= rg_doc.created_at else rg_doc.created_at) | fdatetime_ms }}
+            {% elif cpf_doc %}
+              {{ cpf_doc.created_at | fdatetime_ms }}
+            {% elif rg_doc %}
+              {{ rg_doc.created_at | fdatetime_ms }}
+            {% else %}
+              —
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 </section>
 
 {% endblock %}

@@ -32,7 +32,7 @@
       <a href="/pis/{{ pi.id }}" class="card pi-card">
         <div class="pi-card-head">
           <span class="badge badge-{{ pi.status.value }}">{{ pi.status|status_label }}</span>
-          <span class="muted small">{{ pi.created_at|fdatetime }}</span>
+          <span class="muted small">{{ pi.created_at|fdatetime_ms }}</span>
         </div>
         <h3>{{ pi.title }}</h3>
         <div class="pi-meta">

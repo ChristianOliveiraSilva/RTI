@@ -35,6 +35,8 @@ htmlcov/
 # Storage / generated files
 storage/pdfs/*
 !storage/pdfs/.gitkeep
+storage/author_documents/*
+!storage/author_documents/.gitkeep
 
 # Logs
 *.log

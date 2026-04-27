@@ -4,32 +4,164 @@
 <meta charset="utf-8">
 <title>{% block title %}Anexo{% endblock %}</title>
 <style>
-  @page { size: A4; margin: 2cm; }
-  * { box-sizing: border-box; }
-  body { font-family: "DejaVu Sans", "Liberation Sans", Arial, sans-serif; font-size: 11pt; color: #111; line-height: 1.45; }
-  h1 { text-align: center; font-size: 14pt; margin: 0 0 6pt 0; }
-  h2 { font-size: 12pt; margin: 12pt 0 4pt; border-bottom: 1px solid #999; padding-bottom: 2pt; }
-  .header { text-align: center; margin-bottom: 18pt; }
-  .header .org { font-size: 10pt; color: #555; }
-  .meta { font-size: 9pt; color: #555; text-align: right; margin-bottom: 4pt; }
-  table { width: 100%; border-collapse: collapse; margin: 8pt 0 4pt; }
-  th, td { border: 1px solid #888; padding: 4pt 6pt; text-align: left; vertical-align: top; font-size: 10pt; }
-  th { background: #eef2f7; }
-  .small { font-size: 9pt; color: #666; }
-  .signature { margin-top: 36pt; text-align: center; }
-  .signature .line { border-top: 1px solid #000; width: 60%; margin: 0 auto 4pt; padding-top: 4pt; }
-  .field { margin: 4pt 0; }
-  .label { font-weight: bold; }
+  @page {
+    size: A4;
+    margin: 3.5cm 2cm 2.5cm 2.5cm;
+    @top-center {
+      content: element(pageHeader);
+    }
+    @bottom-center {
+      content: element(pageFooter);
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Calibri, "DejaVu Sans", "Liberation Sans", Arial, sans-serif;
+    font-size: 11pt;
+    color: #000;
+    line-height: 1.3;
+  }
+
+  /* ── Running header (imagem embutida no PDF) ── */
+  #page-header {
+    position: running(pageHeader);
+    text-align: center;
+    padding-bottom: 2pt;
+  }
+  #page-header img {
+    display: block;
+    margin: 0 auto;
+    max-width: 100%;
+    height: auto;
+    max-height: 2.4cm;
+  }
+
+  /* ── Running footer (imagem embutida no PDF) ── */
+  #page-footer {
+    position: running(pageFooter);
+    text-align: center;
+    padding-top: 2pt;
+  }
+  #page-footer img {
+    display: block;
+    margin: 0 auto;
+    max-width: 100%;
+    height: auto;
+    max-height: 1.6cm;
+  }
+
+  /* ── Conteúdo ── */
+  .doc-header {
+    text-align: center;
+    margin-bottom: 14pt;
+  }
+  .doc-header .form-title {
+    font-weight: bold;
+    font-size: 11pt;
+    margin-bottom: 6pt;
+  }
+  .doc-header .anexo-title {
+    font-weight: bold;
+    font-size: 11pt;
+    margin-bottom: 10pt;
+  }
+  h2 {
+    font-size: 11pt;
+    font-weight: bold;
+    margin: 10pt 0 4pt;
+  }
+  p {
+    margin: 6pt 0;
+    text-align: justify;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 6pt 0;
+  }
+  th, td {
+    border: 1px solid #000;
+    padding: 3pt 5pt;
+    text-align: left;
+    vertical-align: top;
+    font-size: 10pt;
+  }
+  th {
+    font-weight: bold;
+    background: #e8e8e8;
+  }
+  .no-border td, .no-border th {
+    border: none;
+  }
+  .text-center { text-align: center; }
+  .text-right { text-align: right; }
   .text-justify { text-align: justify; }
-  ul { margin: 4pt 0 4pt 18pt; }
+  .bold { font-weight: bold; }
+  .small { font-size: 9pt; }
+  ul {
+    margin: 6pt 0 6pt 2em;
+    padding: 0;
+    list-style-type: disc;
+  }
+  ul li {
+    margin: 4pt 0;
+    text-align: justify;
+  }
+  .signature-block {
+    margin-top: 30pt;
+    text-align: center;
+  }
+  .signature-block .sig-line {
+    border-top: 1px solid #000;
+    width: 55%;
+    margin: 0 auto;
+    padding-top: 3pt;
+    font-size: 10pt;
+  }
+  .sig-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20pt;
+  }
+  .sig-table td {
+    border: 1px solid #000;
+    padding: 10pt 6pt;
+    width: 50%;
+    vertical-align: top;
+    font-size: 10pt;
+    height: 60pt;
+  }
+  .date-line {
+    text-align: right;
+    margin: 14pt 0 6pt;
+  }
+  .indent { text-indent: 2em; }
+  .meta-small {
+    font-size: 8pt;
+    color: #666;
+    text-align: right;
+    margin-top: 4pt;
+  }
 </style>
 </head>
 <body>
-  <div class="header">
-    <div class="org">INSTITUTO FEDERAL DE EDUCAÇÃO, CIÊNCIA E TECNOLOGIA<br>NÚCLEO DE INOVAÇÃO TECNOLÓGICA - NIT</div>
-    <h1>{% block heading %}{% endblock %}</h1>
+  <!-- Running header / footer: bitmaps (WeasyPrint embute via base_url em app/static) -->
+  <div id="page-header">
+    <img src="img/header.png" alt="IFMS – Núcleo de Inovação Tecnológica – NIT">
   </div>
-  <div class="meta">Gerado em {{ now.strftime("%d/%m/%Y %H:%M") }}</div>
+
+  <div id="page-footer">
+    <img src="img/footer.png" alt="NÚCLEO DE INOVAÇÃO TECNOLÓGICA DO IFMS – NIT/IFMS – contactos">
+  </div>
+
+  <!-- Cabeçalho do documento -->
+  <div class="doc-header">
+    <p class="form-title">FORMULÁRIO DE SOLICITAÇÃO DE REGISTRO DE {{ pi.type|pi_type_label|upper }}</p>
+    <p class="anexo-title">{% block heading %}{% endblock %}</p>
+  </div>
+
   {% block body %}{% endblock %}
+
+  <p class="meta-small">Gerado em {{ now|fdatetime_ms }}</p>
 </body>
 </html>

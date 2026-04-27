@@ -1,17 +1,20 @@
 from __future__ import annotations
 
 import logging
+import os
 from datetime import datetime, timezone
 from typing import List
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
 from app.deps import require_user
 from app.models import (
     AuthorDeclaration,
+    AuthorDocument,
+    AuthorDocumentType,
     AuthorProfile,
     IfmsBond,
     PI,
@@ -22,6 +25,8 @@ from app.models import (
     User,
     UserRole,
 )
+from app.config import settings
+from app.services.author_documents_service import save_required_upload
 from app.services.invitations import create_invitation, send_invitation_email
 from app.templating import IFMS_BOND_LABELS, PI_TYPE_LABELS, templates
 
@@ -101,7 +106,7 @@ async def pi_create(
 ):
     form = await request.form()
 
-    # ---- Dados da PI ----
+    # ---- Dados da Propriedade Intelectual ----
     title = (form.get("title") or "").strip()
     pi_type = (form.get("type") or "").strip()
     description = (form.get("description") or "").strip()
@@ -139,14 +144,17 @@ async def pi_create(
 
     errors: List[str] = []
 
+    cpf_upload = form.get("cpf_file")
+    rg_upload = form.get("rg_file")
+
     # ---- Validações da PI ----
     if not title:
-        errors.append("Informe o título da PI.")
+        errors.append("Informe o título da Propriedade Intelectual.")
     try:
         pi_type_enum = PIType(pi_type)
     except ValueError:
         pi_type_enum = PIType.outro
-        errors.append("Tipo de PI inválido.")
+        errors.append("Tipo de Propriedade Intelectual inválido.")
 
     if has_partner and not partner_name:
         errors.append("Informe o nome da instituição parceira.")
@@ -188,6 +196,11 @@ async def pi_create(
         errors.append("É preciso aceitar a declaração de veracidade (Anexo III).")
     if not accepted_conf:
         errors.append("É preciso aceitar o termo de confidencialidade (Anexo V).")
+
+    if not getattr(cpf_upload, "filename", None):
+        errors.append("Envie o documento do CPF (upload).")
+    if not getattr(rg_upload, "filename", None):
+        errors.append("Envie o documento do RG (upload).")
 
     # ---- Validações dos coautores ----
     coauthors_clean = []
@@ -279,6 +292,45 @@ async def pi_create(
     db.add(primary_pa)
     db.flush()
 
+    try:
+        base_dir = os.path.join(
+            settings.author_documents_storage_dir,
+            f"pi_{pi.id}",
+            f"author_{primary_pa.id}",
+        )
+        cpf_path, cpf_name, cpf_ct = await save_required_upload(
+            cpf_upload,
+            os.path.join(base_dir, "cpf"),
+            max_bytes=10 * 1024 * 1024,
+        )
+        rg_path, rg_name, rg_ct = await save_required_upload(
+            rg_upload,
+            os.path.join(base_dir, "rg"),
+            max_bytes=10 * 1024 * 1024,
+        )
+        db.add(
+            AuthorDocument(
+                pi_author_id=primary_pa.id,
+                type=AuthorDocumentType.cpf,
+                file_path=cpf_path,
+                original_filename=cpf_name,
+                content_type=cpf_ct or None,
+            )
+        )
+        db.add(
+            AuthorDocument(
+                pi_author_id=primary_pa.id,
+                type=AuthorDocumentType.rg,
+                file_path=rg_path,
+                original_filename=rg_name,
+                content_type=rg_ct or None,
+            )
+        )
+        db.flush()
+    except HTTPException:
+        db.rollback()
+        raise
+
     profile_values = {
         "cpf": primary["cpf"],
         "rg": primary["rg"],
@@ -325,7 +377,7 @@ async def pi_create(
         inv = create_invitation(db, pa)
         invs_to_send.append((pa.id, inv.token))
 
-    # Sem coautores? PI já fica completed.
+    # Sem coautores? Propriedade Intelectual já fica completed.
     if not pa_to_email:
         pi.status = PIStatus.completed
         pi.completed_at = _utcnow()
@@ -362,6 +414,7 @@ async def pi_show(
         db.query(PI)
         .options(
             selectinload(PI.authors).selectinload(PIAuthor.invitations),
+            selectinload(PI.authors).selectinload(PIAuthor.personal_documents),
             selectinload(PI.documents),
             selectinload(PI.owner),
         )
@@ -369,7 +422,7 @@ async def pi_show(
         .first()
     )
     if not pi:
-        raise HTTPException(status_code=404, detail="PI não encontrada")
+        raise HTTPException(status_code=404, detail="Propriedade Intelectual não encontrada")
     if not _can_view(user, pi):
         raise HTTPException(status_code=403, detail="Sem permissão")
 
@@ -385,6 +438,47 @@ async def pi_show(
             "is_admin": user.role == UserRole.admin,
         },
     )
+
+
+@router.get(
+    "/pis/{pi_id}/authors/{pa_id}/personal-docs/{doc_type}/download",
+    name="pi_author_personal_doc_download",
+)
+async def author_personal_doc_download(
+    pi_id: int,
+    pa_id: int,
+    doc_type: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_user),
+):
+    pi = db.query(PI).filter(PI.id == pi_id).first()
+    if not pi:
+        raise HTTPException(status_code=404, detail="Propriedade Intelectual não encontrada")
+    if not _can_view(user, pi):
+        raise HTTPException(status_code=403, detail="Sem permissão")
+
+    pa = db.query(PIAuthor).filter(PIAuthor.id == pa_id, PIAuthor.pi_id == pi_id).first()
+    if not pa:
+        raise HTTPException(status_code=404, detail="Autor não encontrado")
+
+    try:
+        dtype = AuthorDocumentType(doc_type)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Tipo de documento inválido")
+
+    doc = (
+        db.query(AuthorDocument)
+        .filter(AuthorDocument.pi_author_id == pa_id, AuthorDocument.type == dtype)
+        .first()
+    )
+    if not doc:
+        raise HTTPException(status_code=404, detail="Documento não encontrado")
+    if not os.path.exists(doc.file_path):
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado em disco")
+
+    filename = os.path.basename(doc.file_path)
+    media_type = doc.content_type or "application/octet-stream"
+    return FileResponse(doc.file_path, media_type=media_type, filename=filename)
 
 
 @router.post("/pis/{pi_id}/authors/{pa_id}/resend", name="pi_resend_invite")
@@ -433,6 +527,8 @@ async def pi_resend_invite(
 
     if request.headers.get("HX-Request"):
         return HTMLResponse(
-            f"<span class='ok'>Convite reenviado para {pa.email}</span>"
+            '<button type="button" class="btn btn-ghost btn-sm" disabled>'
+            "Convite enviado"
+            "</button>"
         )
     return RedirectResponse(url=f"/pis/{pi_id}", status_code=303)

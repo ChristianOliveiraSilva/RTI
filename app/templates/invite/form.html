@@ -13,7 +13,7 @@
       com participação de <strong>{{ pa.percentage|fpercent }}</strong>.
       Preencha seus dados para concluir.
     </p>
-    <p class="muted small">Convite válido até {{ expires_at|fdatetime }}.</p>
+    <p class="muted small">Convite válido até {{ expires_at|fdatetime_ms }} (horário de MS, GMT-4).</p>
   </div>
 </div>
 
@@ -24,7 +24,7 @@
   </div>
 {% endif %}
 
-<form method="post" action="/invite/{{ token }}" class="card form-card">
+<form method="post" action="/invite/{{ token }}" class="card form-card" enctype="multipart/form-data">
 
   <fieldset>
     <legend>Dados pessoais</legend>
@@ -41,14 +41,41 @@
     <div class="form-grid-2">
       <div class="form-row">
         <label>CPF *</label>
-        <input type="text" name="cpf" required
+        <input type="text" name="cpf" required inputmode="numeric" autocomplete="off"
+               maxlength="14" pattern="\d{3}\.\d{3}\.\d{3}-\d{2}" data-mask="cpf"
                value="{{ s.cpf if s else (p.cpf if p else '') }}"
                placeholder="000.000.000-00" />
       </div>
       <div class="form-row">
         <label>RG *</label>
-        <input type="text" name="rg" required
+        <input type="text" name="rg" required autocomplete="off" maxlength="20"
                value="{{ s.rg if s else (p.rg if p else '') }}" />
+      </div>
+    </div>
+    <div class="form-grid-2">
+      <div class="form-row">
+        <label>Documento CPF (upload) *</label>
+        <div class="upload">
+          <label class="upload-btn" data-upload-label="Escolher arquivo (CPF)">
+            <input class="upload-input" type="file" name="cpf_file" required
+                   accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" />
+            <span class="upload-btn-text">Escolher arquivo (CPF)</span>
+          </label>
+          <div class="upload-filename muted small" aria-live="polite">Nenhum arquivo selecionado.</div>
+          <div class="muted small">PDF/JPG/PNG. Máx 10MB.</div>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Documento RG (upload) *</label>
+        <div class="upload">
+          <label class="upload-btn" data-upload-label="Escolher arquivo (RG)">
+            <input class="upload-input" type="file" name="rg_file" required
+                   accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" />
+            <span class="upload-btn-text">Escolher arquivo (RG)</span>
+          </label>
+          <div class="upload-filename muted small" aria-live="polite">Nenhum arquivo selecionado.</div>
+          <div class="muted small">PDF/JPG/PNG. Máx 10MB.</div>
+        </div>
       </div>
     </div>
     <div class="form-grid-3">
@@ -84,12 +111,14 @@
     <div class="form-grid-2">
       <div class="form-row">
         <label>Telefone fixo</label>
-        <input type="text" name="phone"
+        <input type="text" name="phone" inputmode="tel" autocomplete="off"
+               maxlength="15" data-mask="phone"
                value="{{ s.phone if s else (p.phone if p else '') }}" />
       </div>
       <div class="form-row">
         <label>Celular *</label>
-        <input type="text" name="cellphone" required
+        <input type="text" name="cellphone" required inputmode="tel" autocomplete="off"
+               maxlength="15" data-mask="phone"
                value="{{ s.cellphone if s else (p.cellphone if p else '') }}"
                placeholder="(00) 00000-0000" />
       </div>
@@ -124,12 +153,14 @@
       <div class="form-row">
         <label>UF *</label>
         <input type="text" name="address_state" required maxlength="2"
+               autocomplete="off" autocapitalize="characters" pattern="[A-Za-z]{2}" data-mask="uf"
                value="{{ s.address_state if s else (p.address_state if p else '') }}" />
       </div>
     </div>
     <div class="form-row">
       <label>CEP *</label>
-      <input type="text" name="address_zip" required
+      <input type="text" name="address_zip" required inputmode="numeric" autocomplete="off"
+             maxlength="9" pattern="\d{5}-\d{3}" data-mask="cep"
              value="{{ s.address_zip if s else (p.address_zip if p else '') }}"
              placeholder="00000-000" />
     </div>
@@ -167,5 +198,110 @@
     <button type="submit" class="btn btn-primary">Concluir</button>
   </div>
 </form>
+
+<script>
+  function onlyDigits(s) {
+    return (s || "").replace(/\D/g, "");
+  }
+
+  function maskCpf(v) {
+    const d = onlyDigits(v).slice(0, 11);
+    let out = "";
+    if (d.length > 0) out += d.slice(0, 3);
+    if (d.length >= 4) out += "." + d.slice(3, 6);
+    if (d.length >= 7) out += "." + d.slice(6, 9);
+    if (d.length >= 10) out += "-" + d.slice(9, 11);
+    return out;
+  }
+
+  function maskCep(v) {
+    const d = onlyDigits(v).slice(0, 8);
+    if (d.length <= 5) return d;
+    return d.slice(0, 5) + "-" + d.slice(5, 8);
+  }
+
+  function maskPhone(v) {
+    const d = onlyDigits(v).slice(0, 11);
+    if (!d) return "";
+    const ddd = d.slice(0, 2);
+    const rest = d.slice(2);
+    if (rest.length <= 4) return "(" + ddd + ") " + rest;
+    if (rest.length <= 8) return "(" + ddd + ") " + rest.slice(0, 4) + "-" + rest.slice(4);
+    return "(" + ddd + ") " + rest.slice(0, 5) + "-" + rest.slice(5);
+  }
+
+  function isValidCpf(cpf) {
+    const d = onlyDigits(cpf);
+    if (d.length !== 11) return false;
+    if (/^(\d)\1+$/.test(d)) return false;
+    const nums = d.split("").map(n => parseInt(n, 10));
+    let sum = 0;
+    for (let i = 0; i < 9; i++) sum += nums[i] * (10 - i);
+    let dv1 = (sum * 10) % 11;
+    if (dv1 === 10) dv1 = 0;
+    if (dv1 !== nums[9]) return false;
+    sum = 0;
+    for (let i = 0; i < 10; i++) sum += nums[i] * (11 - i);
+    let dv2 = (sum * 10) % 11;
+    if (dv2 === 10) dv2 = 0;
+    return dv2 === nums[10];
+  }
+
+  function applyMasks(root) {
+    const inputs = (root || document).querySelectorAll("[data-mask]");
+    inputs.forEach((el) => {
+      const kind = el.getAttribute("data-mask");
+      const handler = () => {
+        const old = el.value || "";
+        if (kind === "cpf") el.value = maskCpf(old);
+        if (kind === "cep") el.value = maskCep(old);
+        if (kind === "phone") el.value = maskPhone(old);
+        if (kind === "uf") el.value = (old || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2);
+
+        if (kind === "cpf") {
+          if (!el.value) el.setCustomValidity("");
+          else if (el.value.length < 14) el.setCustomValidity("CPF incompleto.");
+          else if (!isValidCpf(el.value)) el.setCustomValidity("CPF inválido.");
+          else el.setCustomValidity("");
+        }
+      };
+      el.addEventListener("input", handler);
+      handler();
+    });
+  }
+
+  function applyUploads(root) {
+    const inputs = (root || document).querySelectorAll(".upload-input");
+    inputs.forEach((input) => {
+      const btn = input.closest(".upload")?.querySelector(".upload-btn");
+      const nameEl = input.closest(".upload")?.querySelector(".upload-filename");
+      const txtEl = input.closest(".upload")?.querySelector(".upload-btn-text");
+      if (!btn || !nameEl || !txtEl) return;
+
+      const baseLabel = btn.getAttribute("data-upload-label") || "Escolher arquivo";
+
+      const update = () => {
+        const file = input.files && input.files[0] ? input.files[0] : null;
+        if (file) {
+          btn.classList.add("upload-btn-selected");
+          txtEl.textContent = "Arquivo selecionado";
+          nameEl.textContent = file.name;
+          nameEl.classList.remove("muted");
+        } else {
+          btn.classList.remove("upload-btn-selected");
+          txtEl.textContent = baseLabel;
+          nameEl.textContent = "Nenhum arquivo selecionado.";
+          nameEl.classList.add("muted");
+        }
+      };
+
+      input.addEventListener("change", update);
+      update();
+    });
+  }
+
+  applyMasks(document);
+  applyUploads(document);
+</script>
 
 {% endblock %}

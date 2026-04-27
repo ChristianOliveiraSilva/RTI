@@ -1,20 +1,25 @@
 from __future__ import annotations
 
 import logging
+import os
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session, selectinload
 
+from app.config import settings
 from app.database import get_db
 from app.models import (
     AuthorDeclaration,
+    AuthorDocument,
+    AuthorDocumentType,
     AuthorProfile,
     IfmsBond,
     PIAuthor,
     PIAuthorStatus,
     PIStatus,
 )
+from app.services.author_documents_service import save_required_upload
 from app.services.invitations import find_valid_invitation, mark_used
 from app.templating import IFMS_BOND_LABELS, templates
 
@@ -89,6 +94,8 @@ async def invite_submit(token: str, request: Request, db: Session = Depends(get_
         )
 
     form = await request.form()
+    cpf_upload = form.get("cpf_file")
+    rg_upload = form.get("rg_file")
 
     def f(key: str) -> str:
         return (form.get(key) or "").strip()
@@ -142,6 +149,22 @@ async def invite_submit(token: str, request: Request, db: Session = Depends(get_
     if not accepted_conf:
         errors.append("É preciso aceitar o termo de confidencialidade (Anexo V).")
 
+    if not getattr(cpf_upload, "filename", None):
+        errors.append("Envie o documento do CPF (upload).")
+    if not getattr(rg_upload, "filename", None):
+        errors.append("Envie o documento do RG (upload).")
+
+    existing = (
+        db.query(AuthorDocument)
+        .filter(
+            AuthorDocument.pi_author_id == pa.id,
+            AuthorDocument.type.in_([AuthorDocumentType.cpf, AuthorDocumentType.rg]),
+        )
+        .count()
+    )
+    if existing:
+        errors.append("Documentos pessoais já foram enviados para este coautor (não é permitido reenviar).")
+
     if errors:
         return templates.TemplateResponse(
             request, "invite/form.html",
@@ -168,6 +191,45 @@ async def invite_submit(token: str, request: Request, db: Session = Depends(get_
     else:
         for k, v in values.items():
             setattr(profile, k, v)
+
+    try:
+        base_dir = os.path.join(
+            settings.author_documents_storage_dir,
+            f"pi_{pa.pi_id}",
+            f"author_{pa.id}",
+        )
+        cpf_path, cpf_name, cpf_ct = await save_required_upload(
+            cpf_upload,
+            os.path.join(base_dir, "cpf"),
+            max_bytes=10 * 1024 * 1024,
+        )
+        rg_path, rg_name, rg_ct = await save_required_upload(
+            rg_upload,
+            os.path.join(base_dir, "rg"),
+            max_bytes=10 * 1024 * 1024,
+        )
+        db.add(
+            AuthorDocument(
+                pi_author_id=pa.id,
+                type=AuthorDocumentType.cpf,
+                file_path=cpf_path,
+                original_filename=cpf_name,
+                content_type=cpf_ct or None,
+            )
+        )
+        db.add(
+            AuthorDocument(
+                pi_author_id=pa.id,
+                type=AuthorDocumentType.rg,
+                file_path=rg_path,
+                original_filename=rg_name,
+                content_type=rg_ct or None,
+            )
+        )
+        db.flush()
+    except HTTPException:
+        db.rollback()
+        raise
 
     db.add(
         AuthorDeclaration(

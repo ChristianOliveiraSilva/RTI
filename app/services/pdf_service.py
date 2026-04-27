@@ -21,9 +21,15 @@ def _ensure_dir(path: str) -> None:
     Path(path).mkdir(parents=True, exist_ok=True)
 
 
+# Barra final obrigatória: urljoin com "static" sem / faz "img/x.png" resolver para
+# static/irmão de img, não static/img/ — imagens falham e o PDF mostra o alt.
+_static_path = (Path(__file__).resolve().parent.parent / "static").resolve()
+_STATIC_BASE_URL = _static_path.as_uri() + "/"
+
+
 def _render_pdf(template_name: str, context: dict, output_path: str) -> None:
     html = templates.get_template(template_name).render(**context)
-    HTML(string=html, base_url=str(Path(settings.pdf_storage_dir))).write_pdf(output_path)
+    HTML(string=html, base_url=_STATIC_BASE_URL).write_pdf(output_path)
 
 
 def all_authors_completed(pi: PI) -> bool:
@@ -70,13 +76,13 @@ def generate_all_pdfs(db: Session, pi: PI) -> list[Document]:
     docs: list[Document] = []
 
     out = os.path.join(pi_dir, f"anexo_ii_{now_str}.pdf")
-    _render_pdf("pdfs/anexo_ii.html", {"pi": pi, "now": datetime.now()}, out)
+    _render_pdf("pdfs/anexo_ii.html", {"pi": pi, "now": datetime.now(timezone.utc)}, out)
     doc = Document(pi_id=pi.id, type=DocumentType.anexo_ii, pdf_path=out)
     docs.append(doc)
     _replace_documents(db, pi, DocumentType.anexo_ii, [doc])
 
     out = os.path.join(pi_dir, f"anexo_iv_{now_str}.pdf")
-    _render_pdf("pdfs/anexo_iv.html", {"pi": pi, "now": datetime.now()}, out)
+    _render_pdf("pdfs/anexo_iv.html", {"pi": pi, "now": datetime.now(timezone.utc)}, out)
     doc = Document(pi_id=pi.id, type=DocumentType.anexo_iv, pdf_path=out)
     docs.append(doc)
     _replace_documents(db, pi, DocumentType.anexo_iv, [doc])
@@ -86,7 +92,7 @@ def generate_all_pdfs(db: Session, pi: PI) -> list[Document]:
         out = os.path.join(pi_dir, f"anexo_iii_autor_{pa.id}_{now_str}.pdf")
         _render_pdf(
             "pdfs/anexo_iii.html",
-            {"pi": pi, "pa": pa, "now": datetime.now()},
+            {"pi": pi, "pa": pa, "now": datetime.now(timezone.utc)},
             out,
         )
         items.append(
@@ -103,7 +109,7 @@ def generate_all_pdfs(db: Session, pi: PI) -> list[Document]:
         out = os.path.join(pi_dir, f"anexo_v_autor_{pa.id}_{now_str}.pdf")
         _render_pdf(
             "pdfs/anexo_v.html",
-            {"pi": pi, "pa": pa, "now": datetime.now()},
+            {"pi": pi, "pa": pa, "now": datetime.now(timezone.utc)},
             out,
         )
         items.append(
@@ -119,24 +125,13 @@ def generate_all_pdfs(db: Session, pi: PI) -> list[Document]:
 
 
 def build_zip_for_pi(pi: PI) -> BytesIO:
-    """Empacota os PDFs do PI em um ZIP em memória."""
+    """Empacota os PDFs do PI em um ZIP em memória (PDFs na raiz, sem subpastas)."""
     buf = BytesIO()
-    label = {
-        DocumentType.anexo_ii: "Anexo_II",
-        DocumentType.anexo_iii: "Anexo_III",
-        DocumentType.anexo_iv: "Anexo_IV",
-        DocumentType.anexo_v: "Anexo_V",
-    }
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         for doc in pi.documents:
             if not os.path.exists(doc.pdf_path):
                 continue
-            base = label.get(doc.type, doc.type.value)
-            if doc.pi_author_id:
-                arc = f"{base}/autor_{doc.pi_author_id}_{os.path.basename(doc.pdf_path)}"
-            else:
-                arc = f"{base}/{os.path.basename(doc.pdf_path)}"
-            zf.write(doc.pdf_path, arcname=arc)
+            zf.write(doc.pdf_path, arcname=os.path.basename(doc.pdf_path))
     buf.seek(0)
     return buf
 

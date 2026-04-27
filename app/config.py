@@ -15,7 +15,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    app_name: str = "Registro de PI - IFMS"
+    app_name: str = "Registro de Propriedades Intelectuais - IFMS"
     app_env: str = "development"
     app_debug: bool = True
     app_host: str = "0.0.0.0"
@@ -39,12 +39,13 @@ class Settings(BaseSettings):
     mail_username: str = ""
     mail_password: str = ""
     mail_from: str = "no-reply@pi.local"
-    mail_from_name: str = "Registro de PI - IFMS"
+    mail_from_name: str = "Registro de Propriedades Intelectuais - IFMS"
     mail_use_tls: bool = True
 
     invitation_expires_hours: int = 48
 
     pdf_storage_dir: str = "/app/storage/pdfs"
+    author_documents_storage_dir: str = "/app/storage/author_documents"
 
     @property
     def admin_emails_list(self) -> List[str]:

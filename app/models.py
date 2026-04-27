@@ -61,6 +61,11 @@ class DocumentType(str, enum.Enum):
     anexo_v = "anexo_v"
 
 
+class AuthorDocumentType(str, enum.Enum):
+    cpf = "cpf"
+    rg = "rg"
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -154,6 +159,9 @@ class PIAuthor(Base):
     documents: Mapped[List["Document"]] = relationship(
         back_populates="pi_author"
     )
+    personal_documents: Mapped[List["AuthorDocument"]] = relationship(
+        back_populates="pi_author", cascade="all, delete-orphan"
+    )
 
 
 class AuthorProfile(Base):
@@ -235,3 +243,26 @@ class Document(Base):
 
     pi: Mapped["PI"] = relationship(back_populates="documents")
     pi_author: Mapped[Optional["PIAuthor"]] = relationship(back_populates="documents")
+
+
+class AuthorDocument(Base):
+    __tablename__ = "author_documents"
+    __table_args__ = (
+        UniqueConstraint("pi_author_id", "type", name="uq_author_documents_author_type"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    pi_author_id: Mapped[int] = mapped_column(
+        ForeignKey("pi_authors.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    type: Mapped[AuthorDocumentType] = mapped_column(
+        Enum(AuthorDocumentType, name="author_document_type"), nullable=False
+    )
+    file_path: Mapped[str] = mapped_column(String(512), nullable=False)
+    original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_type: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    pi_author: Mapped["PIAuthor"] = relationship(back_populates="personal_documents")

@@ -1,34 +1,66 @@
 {% extends "pdfs/_pdf_base.html" %}
 {% block title %}Anexo III - Declaração de Veracidade{% endblock %}
-{% block heading %}ANEXO III — DECLARAÇÃO DE VERACIDADE DAS INFORMAÇÕES{% endblock %}
+{% block heading %}ANEXO III – DECLARAÇÃO DE VERACIDADE DO AUTOR{% endblock %}
 {% block body %}
 
 {% set p = pa.profile %}
 
-<p class="text-justify">
-  Eu, <strong>{{ pa.name }}</strong>,
-  {% if p %}portador(a) do CPF {{ p.cpf }} e RG {{ p.rg }},{% endif %}
-  na qualidade de coautor(a) da Propriedade Intelectual intitulada
-  <strong>"{{ pi.title }}"</strong>, com participação de
-  <strong>{{ pa.percentage|fpercent }}</strong>,
-  <strong>declaro</strong>, sob as penas da lei, que todas as informações
-  prestadas no formulário de cadastro são <strong>verdadeiras</strong>,
-  responsabilizando-me civil e criminalmente pelo seu conteúdo.
+<table>
+  <tr>
+    <td><strong>Título do Programa da Propriedade Intelectual:</strong> {{ pi.title }}</td>
+  </tr>
+</table>
+
+<p class="text-justify indent" style="margin-top:10pt;">
+  Em atendimento à Instrução Normativa em vigor eu, <strong>{{ pa.name }}</strong>,
+  CPF: <strong>{{ p.cpf if p else '_______________' }}</strong>,
+  declaro, para fins de direito, sob as penas da Lei e em atendimento ao art. 2º
+  do Decreto nº 2.556*, de 20 de abril de 1998, que as informações feitas no
+  formulário eletrônico de programa de computador – e-RPC, são verdadeiras e autênticas.
 </p>
 
-<p class="text-justify">
-  Comprometo-me, ainda, a comunicar imediatamente ao Núcleo de Inovação
-  Tecnológica do IFMS qualquer alteração nos dados aqui informados.
+<p class="text-justify indent">
+  Fico ciente através desse documento que a falsidade dessa declaração configura crime
+  previsto no Código Penal Brasileiro e passível de apuração na forma da Lei.
 </p>
 
-<p class="text-justify small">
-  Aceite registrado eletronicamente em
-  {% if pa.completed_at %}{{ pa.completed_at|fdatetime }}{% else %}—{% endif %}.
+<p class="text-justify indent">
+  Ciente das responsabilidades pela declaração apresentada, firmo a presente.
 </p>
 
-<div class="signature">
-  <div class="line">{{ pa.name }}</div>
-  <div class="small">Coautor(a)</div>
+<p class="date-line">
+  Três Lagoas – MS,
+  {% if pa.completed_at %}
+    {{ pa.completed_at|fdatetime_ms }}.
+  {% else %}
+    ______ de ______________ de 20____.
+  {% endif %}
+</p>
+
+<div class="signature-block">
+  <br><br>
+  <div class="sig-line">
+    {{ pa.name }}<br>
+    <span class="small">Assinatura do solicitante e CPF</span>
+  </div>
 </div>
+
+<div style="margin-top:40pt; border-top:1px solid #999; padding-top:6pt;">
+  <p class="small text-justify">
+    *Decreto nº 2.556, de 20 de abril de 1998 – Art. 1º Os programas de computador
+    poderão, a critério do titular dos respectivos direitos, ser registrados no Instituto
+    Nacional da Propriedade Industrial – INPI.
+  </p>
+  <p class="small text-justify" style="margin-top:4pt;">
+    Art. 2º A veracidade das informações de que trata o artigo anterior são de inteira
+    responsabilidade do requerente, não prejudicando eventuais direitos de terceiros nem
+    acarretando qualquer responsabilidade do Governo.
+  </p>
+</div>
+
+<p class="small" style="margin-top:6pt;">
+  Aceite registrado eletronicamente em
+  {% if pa.completed_at %}{{ pa.completed_at|fdatetime_ms }}{% else %}—{% endif %}.
+</p>
 
 {% endblock %}

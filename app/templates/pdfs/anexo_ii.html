@@ -1,46 +1,75 @@
 {% extends "pdfs/_pdf_base.html" %}
 {% block title %}Anexo II - Dados dos Autores{% endblock %}
-{% block heading %}ANEXO II — DADOS DOS AUTORES{% endblock %}
+{% block heading %}ANEXO II – DADOS DOS AUTORES{% endblock %}
 {% block body %}
 
-<h2>Identificação da Propriedade Intelectual</h2>
 <table>
-  <tr><th style="width:30%">Título</th><td>{{ pi.title }}</td></tr>
-  <tr><th>Tipo</th><td>{{ pi.type|pi_type_label }}</td></tr>
-  <tr><th>Possui parceria</th><td>{{ "Sim" if pi.has_partner else "Não" }}</td></tr>
-  {% if pi.has_partner %}
-    <tr><th>Instituição parceira</th><td>{{ pi.partner_name or '-' }}</td></tr>
-    <tr><th>CNPJ</th><td>{{ pi.partner_cnpj or '-' }}</td></tr>
-    <tr><th>Contato</th><td>{{ pi.partner_contact or '-' }}</td></tr>
-  {% endif %}
+  <tr><td colspan="2"><strong>Número de autores:</strong> {{ pi.authors|length }}</td></tr>
+  <tr><td colspan="2"><strong>Título do Programa:</strong> {{ pi.title }}</td></tr>
 </table>
 
 {% for pa in pi.authors %}
   {% set p = pa.profile %}
-  <h2>Autor {{ loop.index }}{% if pa.is_primary %} (principal){% endif %}</h2>
-  <table>
-    <tr><th style="width:30%">Nome</th><td>{{ pa.name }}</td></tr>
-    <tr><th>Email</th><td>{{ pa.email }}</td></tr>
-    <tr><th>CPF</th><td>{{ p.cpf if p else '-' }}</td></tr>
-    <tr><th>RG</th><td>{{ p.rg if p else '-' }}</td></tr>
-    <tr><th>Data de nascimento</th><td>{{ p.birth_date|fdate if p else '-' }}</td></tr>
-    <tr><th>Nacionalidade</th><td>{{ p.nationality if p else '-' }}</td></tr>
-    <tr><th>Estado civil</th><td>{{ p.marital_status if p else '-' }}</td></tr>
-    <tr><th>Cargo / ocupação</th><td>{{ p.occupation if p else '-' }}</td></tr>
-    <tr><th>Telefone</th><td>{{ (p.phone or '-') if p else '-' }}</td></tr>
-    <tr><th>Celular</th><td>{{ p.cellphone if p else '-' }}</td></tr>
+  <table style="margin-top:10pt;">
     <tr>
-      <th>Endereço</th>
-      <td>
-        {% if p %}
-          {{ p.address_street }}, {{ p.address_number }} - {{ p.address_district }}<br>
-          {{ p.address_city }}/{{ p.address_state }} - CEP {{ p.address_zip }}
-        {% else %}-{% endif %}
+      <td colspan="2" style="background:#e8e8e8;">
+        <strong>{% if pa.is_primary %}Autor Principal – Contato NIT{% else %}Autor {{ loop.index }}{% endif %}</strong>
       </td>
     </tr>
-    <tr><th>Vínculo IFMS</th><td>{{ p.ifms_bond|ifms_bond_label if p else '-' }}</td></tr>
-    <tr><th>Participação</th><td>{{ pa.percentage|fpercent }}</td></tr>
+    <tr><td colspan="2"><strong>Nome:</strong> {{ pa.name }}</td></tr>
+    <tr>
+      <td style="width:50%;"><strong>CPF:</strong> {{ p.cpf if p else '' }}</td>
+      <td><strong>Data de nascimento:</strong> {{ p.birth_date|fdate if p else '' }}</td>
+    </tr>
+    <tr>
+      <td><strong>Endereço:</strong> {{ p.address_street if p else '' }}</td>
+      <td><strong>nº</strong> {{ p.address_number if p else '' }}</td>
+    </tr>
+    <tr>
+      <td><strong>Bairro:</strong> {{ p.address_district if p else '' }}</td>
+      <td><strong>CEP:</strong> {{ p.address_zip if p else '' }}</td>
+    </tr>
+    <tr>
+      <td><strong>Cidade:</strong> {{ p.address_city if p else '' }}</td>
+      <td><strong>UF:</strong> {{ p.address_state if p else '' }}</td>
+    </tr>
+    <tr>
+      <td><strong>Telefone fixo:</strong> {{ (p.phone or '') if p else '' }}</td>
+      <td><strong>Celular:</strong> {{ p.cellphone if p else '' }}</td>
+    </tr>
+    <tr><td colspan="2"><strong>E-mail:</strong> {{ pa.email }}</td></tr>
+    <tr>
+      <td colspan="2">
+        <strong>Vínculo com o IFMS:</strong>
+        {% if p %}
+          {% if p.ifms_bond.value == 'servidor' %}( X ) servidor  (&nbsp;&nbsp;) estudante  (&nbsp;&nbsp;) outros:
+          {% elif p.ifms_bond.value == 'estudante' %}(&nbsp;&nbsp;) servidor  ( X ) estudante  (&nbsp;&nbsp;) outros:
+          {% else %}(&nbsp;&nbsp;) servidor  (&nbsp;&nbsp;) estudante  ( X ) outros: {{ p.occupation }}
+          {% endif %}
+        {% endif %}
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2"><strong>Participação:</strong> {{ pa.percentage|fpercent }}</td>
+    </tr>
   </table>
 {% endfor %}
+
+<p style="margin-top:10pt; font-size:10pt;">
+  * O solicitante deverá encaminhar as cópias do RG e CPF de todos os autores.
+</p>
+
+<p style="font-size:10pt;">
+  <strong>Houve participação de outra instituição no desenvolvimento?</strong>
+  {% if pi.has_partner %}( X ) sim&nbsp;&nbsp;(&nbsp;&nbsp;) não{% else %}(&nbsp;&nbsp;) sim&nbsp;&nbsp;( X ) não{% endif %}
+</p>
+
+{% if pi.has_partner %}
+<table style="margin-top:4pt;">
+  <tr><td><strong>Nome:</strong> {{ pi.partner_name or '' }}</td></tr>
+  <tr><td><strong>CNPJ:</strong> {{ pi.partner_cnpj or '' }}</td></tr>
+  <tr><td><strong>Telefone do NIT ou outro contato:</strong> {{ pi.partner_contact or '' }}</td></tr>
+</table>
+{% endif %}
 
 {% endblock %}

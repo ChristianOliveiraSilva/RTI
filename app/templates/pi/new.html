@@ -19,7 +19,7 @@
   </div>
 {% endif %}
 
-<form method="post" action="/pis" class="card form-card" id="pi-form">
+<form method="post" action="/pis" class="card form-card" id="pi-form" enctype="multipart/form-data">
 
   <fieldset>
     <legend>Dados da Propriedade Intelectual</legend>
@@ -40,7 +40,7 @@
       </div>
       <div class="form-row">
         <label>Sua porcentagem (%) *</label>
-        <input type="number" name="primary_percentage" min="0" max="100" step="0.01" required
+        <input type="number" name="primary_percentage" min="0" max="100" step="0.01" required inputmode="decimal"
                value="{{ form.primary_percentage }}" placeholder="ex: 50" />
       </div>
     </div>
@@ -61,7 +61,7 @@
       <span>Possui instituição parceira</span>
     </label>
 
-    <div id="partner-block" style="{% if not form.has_partner %}display:none{% endif %};">
+    <div id="partner-block" {% if not form.has_partner %}style="display:none"{% endif %}>
       <div class="form-grid-2">
         <div class="form-row">
           <label>Nome da instituição</label>
@@ -69,7 +69,10 @@
         </div>
         <div class="form-row">
           <label>CNPJ</label>
-          <input type="text" name="partner_cnpj" value="{{ form.partner_cnpj }}" placeholder="00.000.000/0000-00" />
+          <input type="text" name="partner_cnpj" value="{{ form.partner_cnpj }}"
+                 inputmode="numeric" autocomplete="off" maxlength="18"
+                 pattern="\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}" data-mask="cnpj"
+                 placeholder="00.000.000/0000-00" />
         </div>
       </div>
       <div class="form-row">
@@ -100,11 +103,41 @@
     <div class="form-grid-2">
       <div class="form-row">
         <label>CPF *</label>
-        <input type="text" name="cpf" required value="{{ primary.cpf }}" placeholder="000.000.000-00" />
+        <input type="text" name="cpf" required value="{{ primary.cpf }}"
+               inputmode="numeric" autocomplete="off" maxlength="14"
+               pattern="\d{3}\.\d{3}\.\d{3}-\d{2}" data-mask="cpf"
+               placeholder="000.000.000-00" />
       </div>
       <div class="form-row">
         <label>RG *</label>
-        <input type="text" name="rg" required value="{{ primary.rg }}" />
+        <input type="text" name="rg" required value="{{ primary.rg }}" autocomplete="off" maxlength="20" />
+      </div>
+    </div>
+
+    <div class="form-grid-2">
+      <div class="form-row">
+        <label>Documento CPF (upload) *</label>
+        <div class="upload">
+          <label class="upload-btn" data-upload-label="Escolher arquivo (CPF)">
+            <input class="upload-input" type="file" name="cpf_file" required
+                   accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" />
+            <span class="upload-btn-text">Escolher arquivo (CPF)</span>
+          </label>
+          <div class="upload-filename muted small" aria-live="polite">Nenhum arquivo selecionado.</div>
+          <div class="muted small">PDF/JPG/PNG. Máx 10MB.</div>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Documento RG (upload) *</label>
+        <div class="upload">
+          <label class="upload-btn" data-upload-label="Escolher arquivo (RG)">
+            <input class="upload-input" type="file" name="rg_file" required
+                   accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" />
+            <span class="upload-btn-text">Escolher arquivo (RG)</span>
+          </label>
+          <div class="upload-filename muted small" aria-live="polite">Nenhum arquivo selecionado.</div>
+          <div class="muted small">PDF/JPG/PNG. Máx 10MB.</div>
+        </div>
       </div>
     </div>
 
@@ -139,11 +172,13 @@
     <div class="form-grid-2">
       <div class="form-row">
         <label>Telefone fixo</label>
-        <input type="text" name="phone" value="{{ primary.phone }}" />
+        <input type="text" name="phone" value="{{ primary.phone }}"
+               inputmode="tel" autocomplete="off" maxlength="15" data-mask="phone" />
       </div>
       <div class="form-row">
         <label>Celular *</label>
         <input type="text" name="cellphone" required value="{{ primary.cellphone }}"
+               inputmode="tel" autocomplete="off" maxlength="15" data-mask="phone"
                placeholder="(00) 00000-0000" />
       </div>
     </div>
@@ -172,12 +207,15 @@
       </div>
       <div class="form-row">
         <label>UF *</label>
-        <input type="text" name="address_state" required maxlength="2" value="{{ primary.address_state }}" />
+        <input type="text" name="address_state" required maxlength="2" value="{{ primary.address_state }}"
+               autocomplete="off" autocapitalize="characters" pattern="[A-Za-z]{2}" data-mask="uf" />
       </div>
     </div>
     <div class="form-row">
       <label>CEP *</label>
       <input type="text" name="address_zip" required value="{{ primary.address_zip }}"
+             inputmode="numeric" autocomplete="off" maxlength="9"
+             pattern="\d{5}-\d{3}" data-mask="cep"
              placeholder="00000-000" />
     </div>
   </fieldset>
@@ -243,18 +281,192 @@
 </form>
 
 <script>
+  function onlyDigits(s) {
+    return (s || "").replace(/\D/g, "");
+  }
+
+  function maskCpf(v) {
+    const d = onlyDigits(v).slice(0, 11);
+    let out = "";
+    if (d.length > 0) out += d.slice(0, 3);
+    if (d.length >= 4) out += "." + d.slice(3, 6);
+    if (d.length >= 7) out += "." + d.slice(6, 9);
+    if (d.length >= 10) out += "-" + d.slice(9, 11);
+    return out;
+  }
+
+  function maskCep(v) {
+    const d = onlyDigits(v).slice(0, 8);
+    if (d.length <= 5) return d;
+    return d.slice(0, 5) + "-" + d.slice(5, 8);
+  }
+
+  function maskPhone(v) {
+    const d = onlyDigits(v).slice(0, 11);
+    if (!d) return "";
+    const ddd = d.slice(0, 2);
+    const rest = d.slice(2);
+    if (rest.length <= 4) return "(" + ddd + ") " + rest;
+    if (rest.length <= 8) return "(" + ddd + ") " + rest.slice(0, 4) + "-" + rest.slice(4);
+    return "(" + ddd + ") " + rest.slice(0, 5) + "-" + rest.slice(5);
+  }
+
+  function maskCnpj(v) {
+    const d = onlyDigits(v).slice(0, 14);
+    let out = "";
+    if (d.length > 0) out += d.slice(0, 2);
+    if (d.length >= 3) out += "." + d.slice(2, 5);
+    if (d.length >= 6) out += "." + d.slice(5, 8);
+    if (d.length >= 9) out += "/" + d.slice(8, 12);
+    if (d.length >= 13) out += "-" + d.slice(12, 14);
+    return out;
+  }
+
+  function isValidCpf(cpf) {
+    const d = onlyDigits(cpf);
+    if (d.length !== 11) return false;
+    if (/^(\d)\1+$/.test(d)) return false;
+    const nums = d.split("").map(n => parseInt(n, 10));
+    let sum = 0;
+    for (let i = 0; i < 9; i++) sum += nums[i] * (10 - i);
+    let dv1 = (sum * 10) % 11;
+    if (dv1 === 10) dv1 = 0;
+    if (dv1 !== nums[9]) return false;
+    sum = 0;
+    for (let i = 0; i < 10; i++) sum += nums[i] * (11 - i);
+    let dv2 = (sum * 10) % 11;
+    if (dv2 === 10) dv2 = 0;
+    return dv2 === nums[10];
+  }
+
+  function isValidCnpj(cnpj) {
+    const d = onlyDigits(cnpj);
+    if (d.length !== 14) return false;
+    if (/^(\d)\1+$/.test(d)) return false;
+    const nums = d.split("").map(n => parseInt(n, 10));
+    const calc = (len) => {
+      const weights = (len === 12)
+        ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+        : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+      let sum = 0;
+      for (let i = 0; i < weights.length; i++) sum += nums[i] * weights[i];
+      const mod = sum % 11;
+      return mod < 2 ? 0 : 11 - mod;
+    };
+    const dv1 = calc(12);
+    if (dv1 !== nums[12]) return false;
+    const dv2 = calc(13);
+    return dv2 === nums[13];
+  }
+
+  function normalizeNumberInput(el) {
+    if (!el) return;
+    const v = (el.value || "");
+    if (v.includes(",")) el.value = v.replace(/,/g, ".");
+  }
+
+  function applyMasks(root) {
+    const inputs = (root || document).querySelectorAll("[data-mask]");
+    inputs.forEach((el) => {
+      const kind = el.getAttribute("data-mask");
+      const handler = () => {
+        const old = el.value || "";
+        if (kind === "cpf") el.value = maskCpf(old);
+        if (kind === "cnpj") el.value = maskCnpj(old);
+        if (kind === "cep") el.value = maskCep(old);
+        if (kind === "phone") el.value = maskPhone(old);
+        if (kind === "uf") el.value = (old || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2);
+
+        if (kind === "cpf") {
+          if (!el.value) el.setCustomValidity("");
+          else if (el.value.length < 14) el.setCustomValidity("CPF incompleto.");
+          else if (!isValidCpf(el.value)) el.setCustomValidity("CPF inválido.");
+          else el.setCustomValidity("");
+        }
+
+        if (kind === "cnpj") {
+          const hasPartner = document.getElementById("has_partner");
+          const partnerChecked = !!(hasPartner && hasPartner.checked);
+          if (!partnerChecked && !el.value) {
+            el.setCustomValidity("");
+          } else if (!el.value) {
+            el.setCustomValidity("");
+          } else if (el.value.length < 18) {
+            el.setCustomValidity("CNPJ incompleto.");
+          } else if (!isValidCnpj(el.value)) {
+            el.setCustomValidity("CNPJ inválido.");
+          } else {
+            el.setCustomValidity("");
+          }
+        }
+      };
+      el.addEventListener("input", handler);
+      handler();
+    });
+  }
+
+  function applyUploads(root) {
+    const inputs = (root || document).querySelectorAll(".upload-input");
+    inputs.forEach((input) => {
+      const btn = input.closest(".upload")?.querySelector(".upload-btn");
+      const nameEl = input.closest(".upload")?.querySelector(".upload-filename");
+      const txtEl = input.closest(".upload")?.querySelector(".upload-btn-text");
+      if (!btn || !nameEl || !txtEl) return;
+
+      const baseLabel = btn.getAttribute("data-upload-label") || "Escolher arquivo";
+
+      const update = () => {
+        const file = input.files && input.files[0] ? input.files[0] : null;
+        if (file) {
+          btn.classList.add("upload-btn-selected");
+          txtEl.textContent = "Arquivo selecionado";
+          nameEl.textContent = file.name;
+          nameEl.classList.remove("muted");
+        } else {
+          btn.classList.remove("upload-btn-selected");
+          txtEl.textContent = baseLabel;
+          nameEl.textContent = "Nenhum arquivo selecionado.";
+          nameEl.classList.add("muted");
+        }
+      };
+
+      input.addEventListener("change", update);
+      update();
+    });
+  }
+
   function recompute() {
     const inputs = document.querySelectorAll('input[name="coauthor_percentage"], input[name="primary_percentage"]');
     let total = 0;
-    inputs.forEach(i => total += parseFloat((i.value||"0").replace(",", ".")) || 0);
+    inputs.forEach(i => {
+      normalizeNumberInput(i);
+      total += parseFloat((i.value || "0")) || 0;
+    });
     const el = document.getElementById('total-percent');
     if (el) {
       el.textContent = total.toFixed(2) + '%';
       el.className = Math.abs(total - 100) < 0.01 ? 'ok' : 'warn';
     }
+
+    const primary = document.querySelector('input[name="primary_percentage"]');
+    if (primary) {
+      if (Math.abs(total - 100) < 0.01) primary.setCustomValidity("");
+      else primary.setCustomValidity("A soma das porcentagens deve ser exatamente 100%.");
+    }
   }
   document.addEventListener('input', recompute);
-  document.body.addEventListener('htmx:afterSwap', recompute);
+  document.body.addEventListener('htmx:afterSwap', (evt) => {
+    applyMasks(evt.target);
+    applyUploads(evt.target);
+    recompute();
+  });
+
+  const form = document.getElementById("pi-form");
+  if (form) form.addEventListener("submit", recompute);
+
+  applyMasks(document);
+  applyUploads(document);
+  recompute();
 </script>
 
 <div class="sticky-total">

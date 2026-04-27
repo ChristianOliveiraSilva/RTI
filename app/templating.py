@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -11,6 +11,8 @@ TEMPLATES_DIR = BASE_DIR / "templates"
 
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
+# Mato Grosso do Sul: UTC-4 (sem horario de verao no Brasil vigente a partir de 2019)
+_MS_TZ = timezone(timedelta(hours=-4), "GMT-4")
 
 PI_TYPE_LABELS = {
     "software": "Programa de Computador (Software)",
@@ -50,8 +52,23 @@ def format_datetime(value: Any, fmt: str = "%d/%m/%Y %H:%M") -> str:
     if value is None:
         return ""
     if isinstance(value, datetime):
-        return value.strftime(fmt)
+        # Exibição padrão do sistema: fuso de MS (UTC-4)
+        # Se vier sem tzinfo, assume UTC (como no banco) antes de converter.
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        return value.astimezone(_MS_TZ).strftime(fmt)
     return str(value)
+
+
+def format_datetime_ms(value: Any, fmt: str = "%d/%m/%Y %H:%M") -> str:
+    """Data/hora no fuso de MS (UTC-4), ex. e-mail e prazo de convite."""
+    if value is None:
+        return ""
+    if not isinstance(value, datetime):
+        return str(value)
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(_MS_TZ).strftime(fmt)
 
 
 def format_percent(value: Any) -> str:
@@ -86,6 +103,7 @@ def ifms_bond_label(value: Any) -> str:
 
 templates.env.filters["fdate"] = format_date
 templates.env.filters["fdatetime"] = format_datetime
+templates.env.filters["fdatetime_ms"] = format_datetime_ms
 templates.env.filters["fpercent"] = format_percent
 templates.env.filters["status_label"] = status_label
 templates.env.filters["pi_type_label"] = pi_type_label

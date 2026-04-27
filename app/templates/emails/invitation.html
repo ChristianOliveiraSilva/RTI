@@ -18,7 +18,7 @@
       </a>
     </p>
     <p>
-      Este convite é válido até <strong>{{ expires_at.strftime("%d/%m/%Y %H:%M UTC") }}</strong>.
+      Este convite é válido até <strong>{{ expires_at|fdatetime_ms }} (horário de Mato Grosso do Sul, GMT-4)</strong>.
       Após esse prazo será necessário solicitar um novo link.
     </p>
     <hr style="border:none;border-top:1px solid #e6e8ee;margin:24px 0;">
