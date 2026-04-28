@@ -97,7 +97,6 @@ async def pi_new_form(request: Request, user: User = Depends(require_user)):
                 "partner_name": "",
                 "partner_cnpj": "",
                 "partner_contact": "",
-                "partner_percentage": "",
                 "primary_percentage": "",
             },
             "primary": _empty_primary(),
@@ -137,7 +136,6 @@ async def pi_create(
     partner_name = (form.get("partner_name") or "").strip() or None
     partner_cnpj = (form.get("partner_cnpj") or "").strip() or None
     partner_contact = (form.get("partner_contact") or "").strip() or None
-    partner_percentage_raw = (form.get("partner_percentage") or "").strip()
     primary_percentage = (form.get("primary_percentage") or "").strip()
 
     # ---- Coautores ----
@@ -210,14 +208,6 @@ async def pi_create(
 
     if has_partner and not partner_name:
         errors.append("Informe o nome da instituição parceira.")
-
-    partner_pct: float | None = None
-    if has_partner:
-        try:
-            partner_pct = float(partner_percentage_raw.replace(",", "."))
-        except ValueError:
-            partner_pct = None
-            errors.append("Informe a porcentagem de titularidade do parceiro.")
 
     try:
         primary_pct = float(primary_percentage.replace(",", "."))
@@ -294,6 +284,22 @@ async def pi_create(
     if abs(total - 100.0) > 0.01:
         errors.append(f"A soma das porcentagens deve ser 100% (atual: {total:g}%).")
 
+    # Titularidade do parceiro no Anexo IV = soma das participações dos coautores
+    # vinculados à instituição parceira (o autor principal é sempre IFMS).
+    partner_pct = sum(
+        c["percentage"] for c in coauthors_clean if c.get("institution") == "partner"
+    )
+    if has_partner and partner_pct <= 0:
+        errors.append(
+            "Com parceria, inclua pelo menos um coautor com instituição "
+            '"Instituição parceira" e distribua as porcentagens entre IFMS e parceiro.'
+        )
+    if not has_partner and partner_pct > 0:
+        errors.append(
+            "Algum coautor está vinculado à instituição parceira; marque "
+            '"Possui instituição parceira" ou altere todos os coautores para IFMS.'
+        )
+
     # ---- Re-render em caso de erro ----
     if errors:
         return templates.TemplateResponse(
@@ -320,7 +326,6 @@ async def pi_create(
                     "partner_name": partner_name or "",
                     "partner_cnpj": partner_cnpj or "",
                     "partner_contact": partner_contact or "",
-                    "partner_percentage": partner_percentage_raw,
                     "primary_percentage": primary_percentage,
                 },
                 "primary": primary,
