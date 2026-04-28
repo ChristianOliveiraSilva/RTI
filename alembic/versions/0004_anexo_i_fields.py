@@ -28,7 +28,14 @@ def upgrade() -> None:
 
     op.execute("ALTER TYPE document_type ADD VALUE IF NOT EXISTS 'anexo_i'")
 
+    op.add_column(
+        "author_profiles",
+        sa.Column("ifms_bond_other", sa.String(255), nullable=True),
+    )
+
+
 def downgrade() -> None:
+    op.drop_column("author_profiles", "ifms_bond_other")
     op.drop_column("pis", "derived_registration")
     op.drop_column("pis", "derived_title")
     op.drop_column("pis", "is_derived")

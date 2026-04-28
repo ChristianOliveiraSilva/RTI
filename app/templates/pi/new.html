@@ -74,6 +74,8 @@
     <div class="form-row">
       <label>
         Campo de Aplicação *
+        <a href="https://www.gov.br/inpi/pt-br/assuntos/programas-de-computador/campo_de_aplicacao.pdf"
+           target="_blank" rel="noopener noreferrer" class="muted small" style="margin-left:4px;">(veja lista de referência INPI)</a>
       </label>
       <input type="text" name="application_field" required value="{{ form.application_field }}"
              placeholder="Ex: IN-01 Administração e Negócios" />
@@ -82,6 +84,8 @@
     <div class="form-row">
       <label>
         Tipo de Programa *
+        <a href="https://www.gov.br/inpi/pt-br/assuntos/programas-de-computador/tipos_de_programa.pdf"
+           target="_blank" rel="noopener noreferrer" class="muted small" style="margin-left:4px;">(veja lista referência INPI)</a>
       </label>
       <input type="text" name="program_type" required value="{{ form.program_type }}"
              placeholder="Ex: TP-01 Aplicativo" />
@@ -293,12 +297,17 @@
     <legend>Vínculo institucional</legend>
     <div class="form-row">
       <label>Vínculo com IFMS *</label>
-      <select name="ifms_bond" required>
+      <select name="ifms_bond" id="ifms_bond" required>
         <option value="">Selecione...</option>
         {% for k, label in ifms_bonds.items() %}
           <option value="{{ k }}" {% if primary.ifms_bond == k %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
       </select>
+    </div>
+    <div id="ifms-bond-other-row" class="form-row" style="display:none">
+      <label>Especifique o vínculo (Outros) *</label>
+      <input type="text" name="ifms_bond_other" value="{{ primary.ifms_bond_other }}"
+             placeholder="Descreva seu vínculo com o IFMS" maxlength="255" autocomplete="off" />
     </div>
   </fieldset>
 
@@ -350,6 +359,25 @@
 </form>
 
 <script>
+  (function () {
+    var sel = document.getElementById("ifms_bond");
+    var row = document.getElementById("ifms-bond-other-row");
+    function syncIfmsBondOther() {
+      if (!sel || !row) return;
+      var on = sel.value === "outros";
+      row.style.display = on ? "block" : "none";
+      var inp = row.querySelector('input[name="ifms_bond_other"]');
+      if (inp) {
+        if (on) inp.setAttribute("required", "required");
+        else inp.removeAttribute("required");
+      }
+    }
+    if (sel) {
+      sel.addEventListener("change", syncIfmsBondOther);
+      syncIfmsBondOther();
+    }
+  })();
+
   function onlyDigits(s) {
     return (s || "").replace(/\D/g, "");
   }

@@ -44,7 +44,7 @@
         {% if p %}
           {% if p.ifms_bond.value == 'servidor' %}( X ) servidor  (&nbsp;&nbsp;) estudante  (&nbsp;&nbsp;) outros:
           {% elif p.ifms_bond.value == 'estudante' %}(&nbsp;&nbsp;) servidor  ( X ) estudante  (&nbsp;&nbsp;) outros:
-          {% else %}(&nbsp;&nbsp;) servidor  (&nbsp;&nbsp;) estudante  ( X ) outros: {{ p.occupation }}
+          {% else %}(&nbsp;&nbsp;) servidor  (&nbsp;&nbsp;) estudante  ( X ) outros: {{ p.ifms_bond_other or p.occupation }}
           {% endif %}
         {% endif %}
       </td>

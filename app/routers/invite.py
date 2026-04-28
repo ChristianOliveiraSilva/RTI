@@ -116,6 +116,7 @@ async def invite_submit(token: str, request: Request, db: Session = Depends(get_
         "address_state": f("address_state").upper()[:2],
         "address_zip": f("address_zip"),
         "ifms_bond": f("ifms_bond"),
+        "ifms_bond_other": f("ifms_bond_other"),
     }
     accepted_truth = form.get("accepted_truth") in ("on", "true", "1")
     accepted_conf = form.get("accepted_confidentiality") in ("on", "true", "1")
@@ -137,6 +138,10 @@ async def invite_submit(token: str, request: Request, db: Session = Depends(get_
     except ValueError:
         ifms_bond_enum = None
         errors.append("Vínculo IFMS inválido.")
+
+    bond_other_txt = (fields.get("ifms_bond_other") or "").strip()
+    if ifms_bond_enum == IfmsBond.outros and not bond_other_txt:
+        errors.append("Especifique o vínculo na opção Outros.")
 
     try:
         bd = datetime.strptime(fields["birth_date"], "%Y-%m-%d").date()
@@ -185,6 +190,7 @@ async def invite_submit(token: str, request: Request, db: Session = Depends(get_
 
     profile = pa.profile
     values = {**fields, "ifms_bond": ifms_bond_enum, "birth_date": bd}
+    values["ifms_bond_other"] = bond_other_txt if ifms_bond_enum == IfmsBond.outros else None
     if profile is None:
         profile = AuthorProfile(pi_author_id=pa.id, **values)
         db.add(profile)

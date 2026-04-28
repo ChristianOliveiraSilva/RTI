@@ -59,6 +59,7 @@ def _empty_primary() -> dict:
         "address_state": "",
         "address_zip": "",
         "ifms_bond": "",
+        "ifms_bond_other": "",
     }
 
 
@@ -162,6 +163,7 @@ async def pi_create(
         "address_state": (form.get("address_state") or "").strip().upper()[:2],
         "address_zip": (form.get("address_zip") or "").strip(),
         "ifms_bond": (form.get("ifms_bond") or "").strip(),
+        "ifms_bond_other": (form.get("ifms_bond_other") or "").strip(),
     }
     accepted_truth = form.get("accepted_truth") in ("on", "true", "1")
     accepted_conf = form.get("accepted_confidentiality") in ("on", "true", "1")
@@ -242,6 +244,9 @@ async def pi_create(
             primary_bond = IfmsBond(primary["ifms_bond"])
         except ValueError:
             errors.append("Vínculo IFMS do autor principal inválido.")
+
+    if primary_bond == IfmsBond.outros and not primary["ifms_bond_other"]:
+        errors.append("Especifique o vínculo na opção Outros.")
 
     primary_bd = None
     if primary["birth_date"]:
@@ -427,6 +432,7 @@ async def pi_create(
         "address_state": primary["address_state"],
         "address_zip": primary["address_zip"],
         "ifms_bond": primary_bond,
+        "ifms_bond_other": primary["ifms_bond_other"] if primary_bond == IfmsBond.outros else None,
     }
     db.add(AuthorProfile(pi_author_id=primary_pa.id, **profile_values))
     db.add(

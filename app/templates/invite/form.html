@@ -172,13 +172,19 @@
     <legend>Vínculo institucional</legend>
     <div class="form-row">
       <label>Vínculo com IFMS *</label>
-      <select name="ifms_bond" required>
+      <select name="ifms_bond" id="invite_ifms_bond" required>
         <option value="">Selecione...</option>
         {% set bond = s.ifms_bond if s else (p.ifms_bond.value if p and p.ifms_bond else '') %}
         {% for k, label in ifms_bonds.items() %}
           <option value="{{ k }}" {% if bond == k %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
       </select>
+    </div>
+    <div id="invite-ifms-bond-other-row" class="form-row" style="display:none">
+      <label>Especifique o vínculo (Outros) *</label>
+      <input type="text" name="ifms_bond_other"
+             value="{{ (s.ifms_bond_other if s else (p.ifms_bond_other if p else '')) }}"
+             placeholder="Descreva seu vínculo com o IFMS" maxlength="255" autocomplete="off" />
     </div>
   </fieldset>
 
@@ -327,6 +333,25 @@
       update();
     });
   }
+
+  (function () {
+    var sel = document.getElementById("invite_ifms_bond");
+    var row = document.getElementById("invite-ifms-bond-other-row");
+    function syncInviteIfmsOther() {
+      if (!sel || !row) return;
+      var on = sel.value === "outros";
+      row.style.display = on ? "block" : "none";
+      var inp = row.querySelector('input[name="ifms_bond_other"]');
+      if (inp) {
+        if (on) inp.setAttribute("required", "required");
+        else inp.removeAttribute("required");
+      }
+    }
+    if (sel) {
+      sel.addEventListener("change", syncInviteIfmsOther);
+      syncInviteIfmsOther();
+    }
+  })();
 
   applyMasks(document);
   applyUploads(document);

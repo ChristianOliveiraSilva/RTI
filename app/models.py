@@ -199,6 +199,7 @@ class AuthorProfile(Base):
     address_state: Mapped[str] = mapped_column(String(2), nullable=False)
     address_zip: Mapped[str] = mapped_column(String(15), nullable=False)
     ifms_bond: Mapped[IfmsBond] = mapped_column(Enum(IfmsBond, name="ifms_bond"), nullable=False)
+    ifms_bond_other: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
