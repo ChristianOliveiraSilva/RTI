@@ -71,6 +71,19 @@ def format_datetime_ms(value: Any, fmt: str = "%d/%m/%Y %H:%M") -> str:
     return value.astimezone(_MS_TZ).strftime(fmt)
 
 
+def format_date_ms(value: Any, fmt: str = "%d/%m/%Y") -> str:
+    """Data no fuso de MS (UTC-4), sem horário."""
+    if value is None:
+        return ""
+    if isinstance(value, datetime):
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        return value.astimezone(_MS_TZ).strftime(fmt)
+    if isinstance(value, date):
+        return value.strftime(fmt)
+    return str(value)
+
+
 def format_percent(value: Any) -> str:
     if value is None:
         return "0%"
@@ -104,6 +117,7 @@ def ifms_bond_label(value: Any) -> str:
 templates.env.filters["fdate"] = format_date
 templates.env.filters["fdatetime"] = format_datetime
 templates.env.filters["fdatetime_ms"] = format_datetime_ms
+templates.env.filters["fdate_ms"] = format_date_ms
 templates.env.filters["fpercent"] = format_percent
 templates.env.filters["status_label"] = status_label
 templates.env.filters["pi_type_label"] = pi_type_label

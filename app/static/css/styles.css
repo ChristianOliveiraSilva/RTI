@@ -316,6 +316,8 @@ legend {
 	display: flex;
 	flex-direction: column;
 	gap: 6px;
+	min-width: 0;
+	overflow: hidden;
 }
 
 .upload-input {
@@ -343,6 +345,17 @@ legend {
 	font-weight: 600;
 	cursor: pointer;
 	transition: border-color .15s, box-shadow .15s, background .15s;
+	max-width: 100%;
+	width: 100%;
+	min-width: 0;
+	box-sizing: border-box;
+}
+
+.upload-btn-text {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	min-width: 0;
 }
 
 .upload-btn:hover {
@@ -370,6 +383,26 @@ legend {
 	text-overflow: ellipsis;
 	white-space: nowrap;
 	max-width: 100%;
+	min-width: 0;
+}
+
+.upload-remove-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 5px 10px;
+	border-radius: 6px;
+	border: 1px solid var(--color-danger, #c0392b);
+	background: transparent;
+	color: var(--color-danger, #c0392b);
+	font-size: .8rem;
+	cursor: pointer;
+	width: fit-content;
+	transition: background .15s;
+}
+
+.upload-remove-btn:hover {
+	background: #fdf0f0;
 }
 
 .form-grid-2 {
@@ -382,6 +415,11 @@ legend {
 	display: grid;
 	grid-template-columns: 1fr 1fr 1fr;
 	gap: 16px;
+}
+
+.form-grid-2 > *,
+.form-grid-3 > * {
+	min-width: 0;
 }
 
 .form-grid-3 .col-span-2 {

@@ -55,6 +55,7 @@ class IfmsBond(str, enum.Enum):
 
 
 class DocumentType(str, enum.Enum):
+    anexo_i = "anexo_i"
     anexo_ii = "anexo_ii"
     anexo_iii = "anexo_iii"
     anexo_iv = "anexo_iv"
@@ -95,6 +96,7 @@ class PI(Base):
     partner_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     partner_cnpj: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
     partner_contact: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    partner_percentage: Mapped[Optional[float]] = mapped_column(Numeric(5, 2), nullable=True)
 
     owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     status: Mapped[PIStatus] = mapped_column(
@@ -102,6 +104,16 @@ class PI(Base):
     )
 
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    programming_language: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    creation_date: Mapped[Optional[Date]] = mapped_column(Date, nullable=True)
+    publication_date: Mapped[Optional[Date]] = mapped_column(Date, nullable=True)
+    application_field: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    program_type: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    source_hash: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    is_derived: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    derived_title: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    derived_registration: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -137,6 +149,7 @@ class PIAuthor(Base):
 
     percentage: Mapped[float] = mapped_column(Numeric(5, 2), nullable=False)
     is_primary: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    institution: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, default="ifms")
     status: Mapped[PIAuthorStatus] = mapped_column(
         Enum(PIAuthorStatus, name="pi_author_status"),
         default=PIAuthorStatus.pending,

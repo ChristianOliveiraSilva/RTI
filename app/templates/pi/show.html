@@ -42,10 +42,34 @@
       <dt>Instituição</dt><dd>{{ pi.partner_name or "-" }}</dd>
       <dt>CNPJ</dt><dd>{{ pi.partner_cnpj or "-" }}</dd>
       <dt>Contato</dt><dd>{{ pi.partner_contact or "-" }}</dd>
+      {% if pi.partner_percentage %}
+        <dt>% Titularidade parceiro</dt><dd>{{ pi.partner_percentage|fpercent }}</dd>
+      {% endif %}
     {% endif %}
     <dt>Responsável</dt><dd>{{ pi.owner.name }} ({{ pi.owner.email }})</dd>
     {% if pi.description %}
       <dt>Descrição</dt><dd>{{ pi.description }}</dd>
+    {% endif %}
+    {% if pi.programming_language %}
+      <dt>Linguagem</dt><dd>{{ pi.programming_language }}</dd>
+    {% endif %}
+    {% if pi.creation_date %}
+      <dt>Data de Criação</dt><dd>{{ pi.creation_date|fdate }}</dd>
+    {% endif %}
+    {% if pi.publication_date %}
+      <dt>Data de Publicação</dt><dd>{{ pi.publication_date|fdate }}</dd>
+    {% endif %}
+    {% if pi.application_field %}
+      <dt>Campo de Aplicação</dt><dd>{{ pi.application_field }}</dd>
+    {% endif %}
+    {% if pi.program_type %}
+      <dt>Tipo de Programa</dt><dd>{{ pi.program_type }}</dd>
+    {% endif %}
+    {% if pi.source_hash %}
+      <dt>Hash (SHA-512)</dt><dd style="word-break:break-all; font-size:0.85em;">{{ pi.source_hash }}</dd>
+    {% endif %}
+    {% if pi.is_derived %}
+      <dt>Derivado de</dt><dd>{{ pi.derived_title or '-' }} (Reg.: {{ pi.derived_registration or '-' }})</dd>
     {% endif %}
   </dl>
 </section>

@@ -83,10 +83,20 @@ async def pi_new_form(request: Request, user: User = Depends(require_user)):
                 "title": "",
                 "type": "software",
                 "description": "",
+                "programming_language": "",
+                "creation_date": "",
+                "publication_date": "",
+                "application_field": "",
+                "program_type": "",
+                "source_hash": "",
+                "is_derived": False,
+                "derived_title": "",
+                "derived_registration": "",
                 "has_partner": False,
                 "partner_name": "",
                 "partner_cnpj": "",
                 "partner_contact": "",
+                "partner_percentage": "",
                 "primary_percentage": "",
             },
             "primary": _empty_primary(),
@@ -110,16 +120,30 @@ async def pi_create(
     title = (form.get("title") or "").strip()
     pi_type = (form.get("type") or "").strip()
     description = (form.get("description") or "").strip()
+
+    # ---- Dados do Programa (Anexo I) ----
+    programming_language = (form.get("programming_language") or "").strip()
+    creation_date_raw = (form.get("creation_date") or "").strip()
+    publication_date_raw = (form.get("publication_date") or "").strip()
+    application_field = (form.get("application_field") or "").strip()
+    program_type = (form.get("program_type") or "").strip()
+    source_hash = (form.get("source_hash") or "").strip()
+    is_derived = form.get("is_derived") in ("on", "true", "1")
+    derived_title = (form.get("derived_title") or "").strip()
+    derived_registration = (form.get("derived_registration") or "").strip()
+
     has_partner = form.get("has_partner") in ("on", "true", "1")
     partner_name = (form.get("partner_name") or "").strip() or None
     partner_cnpj = (form.get("partner_cnpj") or "").strip() or None
     partner_contact = (form.get("partner_contact") or "").strip() or None
+    partner_percentage_raw = (form.get("partner_percentage") or "").strip()
     primary_percentage = (form.get("primary_percentage") or "").strip()
 
     # ---- Coautores ----
     coauthor_names = form.getlist("coauthor_name")
     coauthor_emails = form.getlist("coauthor_email")
     coauthor_percentages = form.getlist("coauthor_percentage")
+    coauthor_institutions = form.getlist("coauthor_institution")
 
     # ---- Profile do autor principal ----
     primary = {
@@ -156,8 +180,42 @@ async def pi_create(
         pi_type_enum = PIType.outro
         errors.append("Tipo de Propriedade Intelectual inválido.")
 
+    if not programming_language:
+        errors.append("Informe a linguagem de programação.")
+    if not application_field:
+        errors.append("Informe o campo de aplicação.")
+    if not program_type:
+        errors.append("Informe o tipo de programa.")
+    if not source_hash:
+        errors.append("Informe o hash do código-fonte.")
+
+    creation_date_val = None
+    if creation_date_raw:
+        try:
+            creation_date_val = datetime.strptime(creation_date_raw, "%Y-%m-%d").date()
+        except ValueError:
+            errors.append("Data de criação inválida.")
+
+    publication_date_val = None
+    if publication_date_raw:
+        try:
+            publication_date_val = datetime.strptime(publication_date_raw, "%Y-%m-%d").date()
+        except ValueError:
+            errors.append("Data de publicação inválida.")
+
+    if not creation_date_raw and not publication_date_raw:
+        errors.append("Informe a data de criação ou a data de publicação.")
+
     if has_partner and not partner_name:
         errors.append("Informe o nome da instituição parceira.")
+
+    partner_pct: float | None = None
+    if has_partner:
+        try:
+            partner_pct = float(partner_percentage_raw.replace(",", "."))
+        except ValueError:
+            partner_pct = None
+            errors.append("Informe a porcentagem de titularidade do parceiro.")
 
     try:
         primary_pct = float(primary_percentage.replace(",", "."))
@@ -206,10 +264,11 @@ async def pi_create(
     coauthors_clean = []
     seen_emails = {user.email.lower()}
     total = primary_pct
-    for nm, em, pc in zip(coauthor_names, coauthor_emails, coauthor_percentages):
+    for idx, (nm, em, pc) in enumerate(zip(coauthor_names, coauthor_emails, coauthor_percentages)):
         nm = (nm or "").strip()
         em = (em or "").strip().lower()
         pc = (pc or "").strip().replace(",", ".")
+        inst = (coauthor_institutions[idx] if idx < len(coauthor_institutions) else "ifms").strip() or "ifms"
         if not nm and not em and not pc:
             continue
         if not nm or not em or not pc:
@@ -225,7 +284,7 @@ async def pi_create(
             continue
         seen_emails.add(em)
         total += pcv
-        coauthors_clean.append({"name": nm, "email": em, "percentage": pcv})
+        coauthors_clean.append({"name": nm, "email": em, "percentage": pcv, "institution": inst})
 
     if abs(total - 100.0) > 0.01:
         errors.append(f"A soma das porcentagens deve ser 100% (atual: {total:g}%).")
@@ -243,21 +302,31 @@ async def pi_create(
                     "title": title,
                     "type": pi_type,
                     "description": description,
+                    "programming_language": programming_language,
+                    "creation_date": creation_date_raw,
+                    "publication_date": publication_date_raw,
+                    "application_field": application_field,
+                    "program_type": program_type,
+                    "source_hash": source_hash,
+                    "is_derived": is_derived,
+                    "derived_title": derived_title,
+                    "derived_registration": derived_registration,
                     "has_partner": has_partner,
                     "partner_name": partner_name or "",
                     "partner_cnpj": partner_cnpj or "",
                     "partner_contact": partner_contact or "",
+                    "partner_percentage": partner_percentage_raw,
                     "primary_percentage": primary_percentage,
                 },
                 "primary": primary,
                 "accepted_truth": accepted_truth,
                 "accepted_confidentiality": accepted_conf,
                 "coauthors": [
-                    {"name": c["name"], "email": c["email"], "percentage": c["percentage"]}
+                    {"name": c["name"], "email": c["email"], "percentage": c["percentage"], "institution": c["institution"]}
                     for c in coauthors_clean
                 ] or [
-                    {"name": n, "email": e, "percentage": p}
-                    for n, e, p in zip(coauthor_names, coauthor_emails, coauthor_percentages)
+                    {"name": n, "email": e, "percentage": p, "institution": coauthor_institutions[i] if i < len(coauthor_institutions) else "ifms"}
+                    for i, (n, e, p) in enumerate(zip(coauthor_names, coauthor_emails, coauthor_percentages))
                     if (n or e or p)
                 ],
             },
@@ -269,10 +338,20 @@ async def pi_create(
         title=title,
         type=pi_type_enum,
         description=description or None,
+        programming_language=programming_language or None,
+        creation_date=creation_date_val,
+        publication_date=publication_date_val,
+        application_field=application_field or None,
+        program_type=program_type or None,
+        source_hash=source_hash or None,
+        is_derived=is_derived,
+        derived_title=derived_title or None if is_derived else None,
+        derived_registration=derived_registration or None if is_derived else None,
         has_partner=has_partner,
         partner_name=partner_name if has_partner else None,
         partner_cnpj=partner_cnpj if has_partner else None,
         partner_contact=partner_contact if has_partner else None,
+        partner_percentage=partner_pct if has_partner else None,
         owner_id=user.id,
         status=PIStatus.awaiting_authors,
     )
@@ -286,6 +365,7 @@ async def pi_create(
         email=user.email.lower(),
         percentage=primary_pct,
         is_primary=True,
+        institution="ifms",
         status=PIAuthorStatus.completed,
         completed_at=_utcnow(),
     )
@@ -366,6 +446,7 @@ async def pi_create(
             email=c["email"],
             percentage=c["percentage"],
             is_primary=False,
+            institution=c["institution"],
             status=PIAuthorStatus.pending,
         )
         db.add(pa)

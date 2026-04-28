@@ -1,4 +1,4 @@
-{% set c = c|default({"name": "", "email": "", "percentage": ""}) %}
+{% set c = c|default({"name": "", "email": "", "percentage": "", "institution": "ifms"}) %}
 <div class="coauthor-row">
   <div class="form-grid-3">
     <div class="form-row">
@@ -10,9 +10,16 @@
       <input type="email" name="coauthor_email" value="{{ c.email }}" required autocomplete="email" />
     </div>
     <div class="form-row">
-      <label>% *</label>
+      <label>Porcentagem de participação (%)*</label>
       <input type="number" name="coauthor_percentage" value="{{ c.percentage }}" min="0" max="100" step="0.01" required inputmode="decimal" />
     </div>
+  </div>
+  <div class="form-row" style="margin-top:4px;">
+    <label>Instituição *</label>
+    <select name="coauthor_institution" required>
+      <option value="ifms" {% if c.institution == 'ifms' %}selected{% endif %}>IFMS</option>
+      <option value="partner" {% if c.institution == 'partner' %}selected{% endif %}>Instituição parceira</option>
+    </select>
   </div>
   <button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.coauthor-row').remove(); document.dispatchEvent(new Event('input'));">
     Remover

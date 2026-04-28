@@ -18,6 +18,7 @@
       {{ p.occupation|default('', true) }},
       residente na rua {{ p.address_street }},
       nº {{ p.address_number }},
+      {{ p.address_district }},
       {{ p.address_city }}/{{ p.address_state }}
       – CEP {{ p.address_zip }};
     {% else %}
@@ -43,26 +44,69 @@
   Lei nº 13.123/2015, a título gratuito, sem qualquer restrição quanto à forma, tempo ou
   lugar, desde já, ficando autorizadas quaisquer atualizações que venham a ser
   consubstanciadas em futuras atualizações, modificações ou derivações tecnológicas.
+  {% if pi.has_partner %}
   Os cedentes declaram estar cientes que, conforme a Política de Inovação do IFMS e o
-  Contrato de Cotitularidade de Propriedade Intelectual entre o IFMS e parceiro, caberá:
+  Contrato de Cotitularidade de Propriedade Intelectual entre o IFMS e {{ pi.partner_name }}, caberá:
+  {% else %}
+  Os cedentes declaram estar cientes que, conforme a Política de Inovação do IFMS, caberá:
+  {% endif %}
 </p>
 
 {% if pi.has_partner %}
-<p class="text-justify" style="margin-left:2em;">
-  50% da titularidade à/ao parceiro ({{ pi.partner_name }}) e
+  {% set partner_pct = pi.partner_percentage|default(50, true)|float %}
+  {% set ifms_pct = 100 - partner_pct %}
+
+  {# Authors grouped by institution #}
+  {% set partner_authors = [] %}
+  {% set ifms_authors = [] %}
+  {% for pa in pi.authors %}
+    {% if pa.institution == 'partner' %}
+      {% if partner_authors.append(pa) %}{% endif %}
+    {% else %}
+      {% if ifms_authors.append(pa) %}{% endif %}
+    {% endif %}
+  {% endfor %}
+
+  {# Partner percentage totals for proportional display #}
+  {% set partner_total_pct = namespace(val=0) %}
+  {% for pa in partner_authors %}
+    {% set partner_total_pct.val = partner_total_pct.val + pa.percentage|float %}
+  {% endfor %}
+  {% set ifms_total_pct = namespace(val=0) %}
+  {% for pa in ifms_authors %}
+    {% set ifms_total_pct.val = ifms_total_pct.val + pa.percentage|float %}
+  {% endfor %}
+
+<p class="text-justify">
+  {{ partner_pct|fpercent }} da titularidade à/ao {{ pi.partner_name }}, sendo este percentual subdividido em três partes de 1/3, onde duas destas partes destinam-se a {{ pi.partner_name }} e a outra parte cabe aos autores inventores, os quais realizarão a divisão na proporção de
+  {% for pa in partner_authors %}
+    {%- if partner_total_pct.val > 0 -%}
+      {{ ((pa.percentage|float / partner_total_pct.val) * 100)|fpercent }}
+    {%- else -%}
+      {{ pa.percentage|fpercent }}
+    {%- endif %} ao Autor {{ loop.index }}: {{ pa.name }}
+    {%- if not loop.last %} e {% endif -%}
+  {% endfor %}
+  {%- if not ifms_authors %}.{% else %} e{% endif %}
 </p>
-<p class="text-justify" style="margin-left:2em;">
-  50% da titularidade ao IFMS, sendo este percentual subdividido em três partes de 1/3,
-  conforme Art. 36 da Política de Inovação do IFMS, onde duas destas partes destinam-se ao
-  IFMS e a outra parte cabe aos autores inventores, os quais realizarão a divisão na proporção de
-  {% for pa in pi.authors %}{{ pa.percentage|fpercent }} ao {{ pa.name }}{% if not loop.last %}, {% endif %}{% endfor %}.
+<p class="text-justify">
+  {{ ifms_pct|fpercent }} da titularidade ao IFMS, sendo este percentual subdividido em três partes de 1/3, conforme Art. 36 da Política de Inovação do IFMS, onde duas destas partes destinam-se ao IFMS e a outra parte cabe aos autores inventores, os quais realizarão a divisão na proporção de
+  {% for pa in ifms_authors %}
+    {%- if ifms_total_pct.val > 0 -%}
+      {{ ((pa.percentage|float / ifms_total_pct.val) * 100)|fpercent }}
+    {%- else -%}
+      {{ pa.percentage|fpercent }}
+    {%- endif %} ao Autor {{ loop.index }}: {{ pa.name }}
+    {%- if not loop.last %} e {% endif -%}
+  {% endfor %}.
 </p>
+
 {% else %}
-<p class="text-justify" style="margin-left:2em;">
-  A titularidade ao IFMS, sendo o percentual subdividido em três partes de 1/3,
+<p class="text-justify">
+  100% da titularidade ao IFMS, sendo este percentual subdividido em três partes de 1/3,
   conforme Art. 36 da Política de Inovação do IFMS, onde duas destas partes destinam-se ao
   IFMS e a outra parte cabe aos autores inventores, os quais realizarão a divisão na proporção de
-  {% for pa in pi.authors %}{{ pa.percentage|fpercent }} ao {{ pa.name }}{% if not loop.last %}, {% endif %}{% endfor %}.
+  {% for pa in pi.authors %}{{ pa.percentage|fpercent }} ao Autor {{ loop.index }}: {{ pa.name }}{% if not loop.last %} e {% endif %}{% endfor %}.
 </p>
 {% endif %}
 
@@ -74,54 +118,38 @@
 <p class="date-line">
   Três Lagoas – MS,
   {% if pi.completed_at %}
-    {{ pi.completed_at|fdatetime_ms }}.
+    {{ pi.completed_at|fdate_ms }}.
   {% else %}
     ______ de ______________ de 20____.
   {% endif %}
 </p>
 
-<!-- Assinaturas dos autores -->
-<table style="width:100%; border-collapse:collapse; margin-top:16pt;">
-  {% for pa in pi.authors %}
-    {% if loop.index0 % 2 == 0 %}
-    <tr>
+{% for pa in pi.authors %}
+<div style="margin-top:14pt; font-size:10pt;">
+  <div>NOME: ________________________________________</div>
+  <div style="margin-top:2pt;">{{ pa.name }}</div>
+  <div style="margin-top:2pt;">CPF: {{ pa.profile.cpf if pa.profile else '___.___.___-__' }}</div>
+  {% if pa.profile and pa.profile.birth_date %}
+    {% set age = (now.date() - pa.profile.birth_date).days // 365 %}
+    {% if age < 18 %}
+    <div class="small" style="margin-top:4pt; font-style:italic;">*Para estudantes menores, o representante legal deverá assinar este documento</div>
     {% endif %}
-      <td style="border:1px solid #000; width:50%; padding:12pt 8pt; height:70pt; vertical-align:bottom; font-size:10pt;">
-        <div style="margin-bottom:4pt;">{{ pa.name }}: ___________________________</div>
-        <div>RG/CPF: {{ pa.profile.cpf if pa.profile else '___________________________' }}</div>
-        {% if pa.profile and pa.profile.birth_date %}
-          {% set age = (now.date() - pa.profile.birth_date).days // 365 %}
-          {% if age < 18 %}
-          <div class="small" style="margin-top:4pt; font-style:italic;">*Para estudantes menores, o representante legal deverá assinar este documento</div>
-          {% endif %}
-        {% endif %}
-      </td>
-    {% if loop.index0 % 2 == 1 or loop.last %}
-      {% if loop.last and loop.index0 % 2 == 0 %}
-      <td style="border:1px solid #000; width:50%; padding:12pt 8pt; height:70pt;"></td>
-      {% endif %}
-    </tr>
-    {% endif %}
-  {% endfor %}
-</table>
+  {% endif %}
+</div>
+{% endfor %}
 
-<!-- Testemunhas -->
-<table style="width:100%; border-collapse:collapse; margin-top:0;">
-  <tr>
-    <td colspan="2" style="border:1px solid #000; text-align:center; background:#e8e8e8; padding:4pt; font-size:10pt;">
-      <strong>TESTEMUNHAS</strong>
-    </td>
-  </tr>
-  <tr>
-    <td style="border:1px solid #000; width:50%; padding:12pt 8pt; height:70pt; vertical-align:bottom; font-size:10pt;">
-      <div style="margin-bottom:4pt;">Nome: ____________________________</div>
-      <div>RG/CPF: ___________________________</div>
-    </td>
-    <td style="border:1px solid #000; width:50%; padding:12pt 8pt; height:70pt; vertical-align:bottom; font-size:10pt;">
-      <div style="margin-bottom:4pt;">Nome: ____________________________</div>
-      <div>RG/CPF: ___________________________</div>
-    </td>
-  </tr>
-</table>
+<div style="margin-top:20pt;">
+  <p style="font-size:10pt; font-weight:bold;">TESTEMUNHAS</p>
+</div>
+
+<div style="margin-top:14pt; font-size:10pt;">
+  <div>NOME: ________________________________________</div>
+  <div style="margin-top:2pt;">CPF: ___.___.___-__</div>
+</div>
+
+<div style="margin-top:14pt; font-size:10pt;">
+  <div>NOME: ________________________________________</div>
+  <div style="margin-top:2pt;">CPF: ___.___.___-__</div>
+</div>
 
 {% endblock %}

@@ -52,6 +52,73 @@
   </fieldset>
 
   <fieldset>
+    <legend>Dados do Programa (Anexo I)</legend>
+
+    <div class="form-row">
+      <label>Linguagem de Programação *</label>
+      <input type="text" name="programming_language" required value="{{ form.programming_language }}"
+             placeholder="Ex: Python, Java, JavaScript" />
+    </div>
+
+    <div class="form-grid-2">
+      <div class="form-row">
+        <label>Data de Criação</label>
+        <input type="date" name="creation_date" value="{{ form.creation_date }}" />
+      </div>
+      <div class="form-row">
+        <label>Data de Publicação</label>
+        <input type="date" name="publication_date" value="{{ form.publication_date }}" />
+      </div>
+    </div>
+
+    <div class="form-row">
+      <label>
+        Campo de Aplicação *
+      </label>
+      <input type="text" name="application_field" required value="{{ form.application_field }}"
+             placeholder="Ex: IN-01 Administração e Negócios" />
+    </div>
+
+    <div class="form-row">
+      <label>
+        Tipo de Programa *
+      </label>
+      <input type="text" name="program_type" required value="{{ form.program_type }}"
+             placeholder="Ex: TP-01 Aplicativo" />
+    </div>
+
+    <div class="form-row">
+      <label>
+        Hash do código-fonte (SHA-512) *
+        <a href="https://emn178.github.io/online-tools/sha512_file_hash.html"
+           target="_blank" class="muted small" style="margin-left:4px;">(gerar hash online)</a>
+      </label>
+      <input type="text" name="source_hash" required value="{{ form.source_hash }}"
+             placeholder="Cole o hash SHA-512 do código-fonte aqui" />
+    </div>
+
+    <label class="checkbox">
+      <input type="checkbox" name="is_derived" id="is_derived"
+             {% if form.is_derived %}checked{% endif %}
+             onchange="document.getElementById('derived-block').style.display = this.checked ? 'block' : 'none';" />
+      <span>O programa é derivado de programa anterior?</span>
+    </label>
+
+    <div id="derived-block" {% if not form.is_derived %}style="display:none"{% endif %}>
+      <div class="form-grid-2">
+        <div class="form-row">
+          <label>Título do programa original</label>
+          <input type="text" name="derived_title" value="{{ form.derived_title }}" />
+        </div>
+        <div class="form-row">
+          <label>Número do registro original</label>
+          <input type="text" name="derived_registration" value="{{ form.derived_registration }}" />
+        </div>
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset>
     <legend>Parceria com instituição</legend>
 
     <label class="checkbox">
@@ -123,6 +190,7 @@
                    accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" />
             <span class="upload-btn-text">Escolher arquivo (CPF)</span>
           </label>
+          <button type="button" class="upload-remove-btn" hidden aria-label="Remover arquivo">&times; Remover arquivo</button>
           <div class="upload-filename muted small" aria-live="polite">Nenhum arquivo selecionado.</div>
           <div class="muted small">PDF/JPG/PNG. Máx 10MB.</div>
         </div>
@@ -135,6 +203,7 @@
                    accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" />
             <span class="upload-btn-text">Escolher arquivo (RG)</span>
           </label>
+          <button type="button" class="upload-remove-btn" hidden aria-label="Remover arquivo">&times; Remover arquivo</button>
           <div class="upload-filename muted small" aria-live="polite">Nenhum arquivo selecionado.</div>
           <div class="muted small">PDF/JPG/PNG. Máx 10MB.</div>
         </div>
@@ -188,6 +257,13 @@
     <legend>Endereço</legend>
     <div class="form-grid-3">
       <div class="form-row col-span-2">
+        <label>CEP *</label>
+        <input type="text" name="address_zip" required value="{{ primary.address_zip }}"
+               inputmode="numeric" autocomplete="off" maxlength="9"
+               pattern="\d{5}-\d{3}" data-mask="cep"
+               placeholder="00000-000" />
+      </div>
+      <div class="form-row col-span-2">
         <label>Rua *</label>
         <input type="text" name="address_street" required value="{{ primary.address_street }}" />
       </div>
@@ -210,13 +286,6 @@
         <input type="text" name="address_state" required maxlength="2" value="{{ primary.address_state }}"
                autocomplete="off" autocapitalize="characters" pattern="[A-Za-z]{2}" data-mask="uf" />
       </div>
-    </div>
-    <div class="form-row">
-      <label>CEP *</label>
-      <input type="text" name="address_zip" required value="{{ primary.address_zip }}"
-             inputmode="numeric" autocomplete="off" maxlength="9"
-             pattern="\d{5}-\d{3}" data-mask="cep"
-             placeholder="00000-000" />
     </div>
   </fieldset>
 
@@ -365,6 +434,24 @@
     if (v.includes(",")) el.value = v.replace(/,/g, ".");
   }
 
+  async function fetchViaCep(cep, form) {
+    const digits = cep.replace(/\D/g, "");
+    if (digits.length !== 8) return;
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+      const data = await res.json();
+      if (data.erro) return;
+      const set = (name, val) => {
+        const el = (form || document).querySelector(`[name="${name}"]`);
+        if (el && val) { el.value = val; }
+      };
+      set("address_street",   data.logradouro);
+      set("address_district", data.bairro);
+      set("address_city",     data.localidade);
+      set("address_state",    data.uf);
+    } catch (_) {}
+  }
+
   function applyMasks(root) {
     const inputs = (root || document).querySelectorAll("[data-mask]");
     inputs.forEach((el) => {
@@ -373,7 +460,10 @@
         const old = el.value || "";
         if (kind === "cpf") el.value = maskCpf(old);
         if (kind === "cnpj") el.value = maskCnpj(old);
-        if (kind === "cep") el.value = maskCep(old);
+        if (kind === "cep") {
+          el.value = maskCep(old);
+          fetchViaCep(el.value, el.closest("form") || document);
+        }
         if (kind === "phone") el.value = maskPhone(old);
         if (kind === "uf") el.value = (old || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2);
 
@@ -408,29 +498,34 @@
   function applyUploads(root) {
     const inputs = (root || document).querySelectorAll(".upload-input");
     inputs.forEach((input) => {
-      const btn = input.closest(".upload")?.querySelector(".upload-btn");
-      const nameEl = input.closest(".upload")?.querySelector(".upload-filename");
-      const txtEl = input.closest(".upload")?.querySelector(".upload-btn-text");
+      const wrap   = input.closest(".upload");
+      const btn    = wrap?.querySelector(".upload-btn");
+      const nameEl = wrap?.querySelector(".upload-filename");
+      const txtEl  = wrap?.querySelector(".upload-btn-text");
+      const rmBtn  = wrap?.querySelector(".upload-remove-btn");
       if (!btn || !nameEl || !txtEl) return;
 
       const baseLabel = btn.getAttribute("data-upload-label") || "Escolher arquivo";
 
       const update = () => {
-        const file = input.files && input.files[0] ? input.files[0] : null;
+        const file = input.files?.[0] ?? null;
         if (file) {
           btn.classList.add("upload-btn-selected");
           txtEl.textContent = "Arquivo selecionado";
           nameEl.textContent = file.name;
           nameEl.classList.remove("muted");
+          if (rmBtn) rmBtn.hidden = false;
         } else {
           btn.classList.remove("upload-btn-selected");
           txtEl.textContent = baseLabel;
           nameEl.textContent = "Nenhum arquivo selecionado.";
           nameEl.classList.add("muted");
+          if (rmBtn) rmBtn.hidden = true;
         }
       };
 
       input.addEventListener("change", update);
+      rmBtn?.addEventListener("click", () => { input.value = ""; update(); });
       update();
     });
   }

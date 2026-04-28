@@ -20,32 +20,30 @@
   Por este termo de confidencialidade e sigilo comprometo-me:
 </p>
 
-<ul>
-  <li>
-    a manter sigilo, tanto escrito como verbal, ou por qualquer outra forma, de todos
-    os dados, informações científicas e técnicas e, sobre todos os materiais obtidos com
-    sua participação, podendo incluir, mas não se limitando a técnicas, desenhos, cópias,
-    diagramas, fórmulas, modelos, amostras, fluxogramas, croquis, fotografias, plantas,
-    programas de computador, discos, disquetes, processos, projetos, dentre outros;
-  </li>
-  <li>
-    a não revelar, reproduzir, utilizar ou dar conhecimento, em hipótese alguma, a
-    terceiros, de dados, informações científicas ou materiais obtidos com sua participação,
-    sem a prévia análise do Núcleo de Inovação Tecnológica (NIT) do Instituto Federal de
-    Educação, Ciência e Tecnologia de Mato Grosso do Sul (IFMS) sobre a possibilidade de
-    proteção, nos órgãos especializados, dos resultados ou tecnologia envolvendo aquela
-    informação;
-  </li>
-  <li>
-    a não tomar, sem autorização do IFMS, qualquer medida com vistas a obter para si ou
-    para terceiros, os direitos de propriedade intelectual relativos às informações sigilosas
-    a que tenha acesso;
-  </li>
-  <li>
-    concordar que toda tecnologia e informações relativas ao produto em análise existentes
-    até o presente momento são de propriedade do IFMS.
-  </li>
-</ul>
+<p class="text-justify" style="margin-left:0;">
+  a) a manter sigilo, tanto escrito como verbal, ou por qualquer outra forma, de todos
+  os dados, informações científicas e técnicas e, sobre todos os materiais obtidos com
+  sua participação, podendo incluir, mas não se limitando a técnicas, desenhos, cópias,
+  diagramas, fórmulas, modelos, amostras, fluxogramas, croquis, fotografias, plantas,
+  programas de computador, discos, disquetes, processos, projetos, dentre outros;
+</p>
+<p class="text-justify" style="margin-left:0;">
+  b) a não revelar, reproduzir, utilizar ou dar conhecimento, em hipótese alguma, a
+  terceiros, de dados, informações científicas ou materiais obtidos com sua participação,
+  sem a prévia análise do Núcleo de Inovação Tecnológica (NIT) do Instituto Federal de
+  Educação, Ciência e Tecnologia de Mato Grosso do Sul (IFMS) sobre a possibilidade de
+  proteção, nos órgãos especializados, dos resultados ou tecnologia envolvendo aquela
+  informação;
+</p>
+<p class="text-justify" style="margin-left:0;">
+  c) a não tomar, sem autorização do IFMS, qualquer medida com vistas a obter para si ou
+  para terceiros, os direitos de propriedade intelectual relativos às informações sigilosas
+  a que tenha acesso;
+</p>
+<p class="text-justify" style="margin-left:0;">
+  d) concordar que toda tecnologia e informações relativas ao produto em análise existentes
+  até o presente momento são de propriedade do IFMS.
+</p>
 
 <p class="text-justify" style="margin-top:10pt;">
   O presente Termo de Sigilo e Confidencialidade tem natureza irrevogável e irretratável e
@@ -58,7 +56,7 @@
 <p class="date-line">
   Três Lagoas – MS,
   {% if pa.completed_at %}
-    {{ pa.completed_at|fdatetime_ms }}.
+    {{ pa.completed_at|fdate_ms }}.
   {% else %}
     ______ de ______________ de 20____.
   {% endif %}
@@ -68,10 +66,5 @@
   <br><br>
   <div class="sig-line">{{ pa.name }}</div>
 </div>
-
-<p class="small" style="margin-top:10pt;">
-  Aceite registrado eletronicamente em
-  {% if pa.completed_at %}{{ pa.completed_at|fdatetime_ms }}{% else %}—{% endif %}.
-</p>
 
 {% endblock %}

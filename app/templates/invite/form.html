@@ -61,6 +61,7 @@
                    accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" />
             <span class="upload-btn-text">Escolher arquivo (CPF)</span>
           </label>
+          <button type="button" class="upload-remove-btn" hidden aria-label="Remover arquivo">&times; Remover arquivo</button>
           <div class="upload-filename muted small" aria-live="polite">Nenhum arquivo selecionado.</div>
           <div class="muted small">PDF/JPG/PNG. Máx 10MB.</div>
         </div>
@@ -73,6 +74,7 @@
                    accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" />
             <span class="upload-btn-text">Escolher arquivo (RG)</span>
           </label>
+          <button type="button" class="upload-remove-btn" hidden aria-label="Remover arquivo">&times; Remover arquivo</button>
           <div class="upload-filename muted small" aria-live="polite">Nenhum arquivo selecionado.</div>
           <div class="muted small">PDF/JPG/PNG. Máx 10MB.</div>
         </div>
@@ -127,6 +129,13 @@
 
   <fieldset>
     <legend>Endereço</legend>
+    <div class="form-row col-span-2">
+      <label>CEP *</label>
+      <input type="text" name="address_zip" required inputmode="numeric" autocomplete="off"
+             maxlength="9" pattern="\d{5}-\d{3}" data-mask="cep"
+             value="{{ s.address_zip if s else (p.address_zip if p else '') }}"
+             placeholder="00000-000" />
+    </div>
     <div class="form-grid-3">
       <div class="form-row col-span-2">
         <label>Rua *</label>
@@ -156,13 +165,6 @@
                autocomplete="off" autocapitalize="characters" pattern="[A-Za-z]{2}" data-mask="uf"
                value="{{ s.address_state if s else (p.address_state if p else '') }}" />
       </div>
-    </div>
-    <div class="form-row">
-      <label>CEP *</label>
-      <input type="text" name="address_zip" required inputmode="numeric" autocomplete="off"
-             maxlength="9" pattern="\d{5}-\d{3}" data-mask="cep"
-             value="{{ s.address_zip if s else (p.address_zip if p else '') }}"
-             placeholder="00000-000" />
     </div>
   </fieldset>
 
@@ -247,6 +249,24 @@
     return dv2 === nums[10];
   }
 
+  async function fetchViaCep(cep, form) {
+    const digits = cep.replace(/\D/g, "");
+    if (digits.length !== 8) return;
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+      const data = await res.json();
+      if (data.erro) return;
+      const set = (name, val) => {
+        const el = (form || document).querySelector(`[name="${name}"]`);
+        if (el && val) { el.value = val; }
+      };
+      set("address_street",   data.logradouro);
+      set("address_district", data.bairro);
+      set("address_city",     data.localidade);
+      set("address_state",    data.uf);
+    } catch (_) {}
+  }
+
   function applyMasks(root) {
     const inputs = (root || document).querySelectorAll("[data-mask]");
     inputs.forEach((el) => {
@@ -254,7 +274,10 @@
       const handler = () => {
         const old = el.value || "";
         if (kind === "cpf") el.value = maskCpf(old);
-        if (kind === "cep") el.value = maskCep(old);
+        if (kind === "cep") {
+          el.value = maskCep(old);
+          fetchViaCep(el.value, el.closest("form") || document);
+        }
         if (kind === "phone") el.value = maskPhone(old);
         if (kind === "uf") el.value = (old || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2);
 
@@ -273,29 +296,34 @@
   function applyUploads(root) {
     const inputs = (root || document).querySelectorAll(".upload-input");
     inputs.forEach((input) => {
-      const btn = input.closest(".upload")?.querySelector(".upload-btn");
-      const nameEl = input.closest(".upload")?.querySelector(".upload-filename");
-      const txtEl = input.closest(".upload")?.querySelector(".upload-btn-text");
+      const wrap   = input.closest(".upload");
+      const btn    = wrap?.querySelector(".upload-btn");
+      const nameEl = wrap?.querySelector(".upload-filename");
+      const txtEl  = wrap?.querySelector(".upload-btn-text");
+      const rmBtn  = wrap?.querySelector(".upload-remove-btn");
       if (!btn || !nameEl || !txtEl) return;
 
       const baseLabel = btn.getAttribute("data-upload-label") || "Escolher arquivo";
 
       const update = () => {
-        const file = input.files && input.files[0] ? input.files[0] : null;
+        const file = input.files?.[0] ?? null;
         if (file) {
           btn.classList.add("upload-btn-selected");
           txtEl.textContent = "Arquivo selecionado";
           nameEl.textContent = file.name;
           nameEl.classList.remove("muted");
+          if (rmBtn) rmBtn.hidden = false;
         } else {
           btn.classList.remove("upload-btn-selected");
           txtEl.textContent = baseLabel;
           nameEl.textContent = "Nenhum arquivo selecionado.";
           nameEl.classList.add("muted");
+          if (rmBtn) rmBtn.hidden = true;
         }
       };
 
       input.addEventListener("change", update);
+      rmBtn?.addEventListener("click", () => { input.value = ""; update(); });
       update();
     });
   }

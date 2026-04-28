@@ -31,7 +31,7 @@
 <p class="date-line">
   Três Lagoas – MS,
   {% if pa.completed_at %}
-    {{ pa.completed_at|fdatetime_ms }}.
+    {{ pa.completed_at|fdate_ms }}.
   {% else %}
     ______ de ______________ de 20____.
   {% endif %}
@@ -41,7 +41,7 @@
   <br><br>
   <div class="sig-line">
     {{ pa.name }}<br>
-    <span class="small">Assinatura do solicitante e CPF</span>
+    <span class="small">{{ p.cpf if p else '_______________' }}</span>
   </div>
 </div>
 
@@ -57,10 +57,5 @@
     acarretando qualquer responsabilidade do Governo.
   </p>
 </div>
-
-<p class="small" style="margin-top:6pt;">
-  Aceite registrado eletronicamente em
-  {% if pa.completed_at %}{{ pa.completed_at|fdatetime_ms }}{% else %}—{% endif %}.
-</p>
 
 {% endblock %}

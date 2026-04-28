@@ -1,0 +1,100 @@
+{% extends "pdfs/_pdf_base.html" %}
+{% block title %}Anexo I - Dados do Programa{% endblock %}
+{% block heading %}ANEXO I – DADOS DO PROGRAMA{% endblock %}
+{% block body %}
+
+{% set primary = pi.authors|selectattr('is_primary')|first %}
+{% set pp = primary.profile if primary else none %}
+
+<table>
+  <tr>
+    <td colspan="2"><strong>Título do Programa:</strong> {{ pi.title }}</td>
+  </tr>
+  <tr>
+    <td colspan="2"><strong>Linguagem de Programação:</strong> {{ pi.programming_language or '' }}</td>
+  </tr>
+  <tr>
+    <td style="width:50%;">
+      <strong>Data de Criação:</strong> {{ pi.creation_date|fdate if pi.creation_date else '' }}
+    </td>
+    <td>
+      <strong>Data de Publicação:</strong> {{ pi.publication_date|fdate if pi.publication_date else '' }}
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2">
+      <strong>Campo de Aplicação:</strong> {{ pi.application_field or '' }}
+      <span class="small muted">(conforme tabela INPI)</span>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2">
+      <strong>Tipo de Programa:</strong> {{ pi.program_type or '' }}
+      <span class="small muted">(conforme tabela INPI)</span>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" style="word-break:break-all;">
+      <strong>Hash do código-fonte (SHA-512):</strong> {{ pi.source_hash or '' }}
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2">
+      <strong>O programa é derivado de programa anterior?</strong>
+      {% if pi.is_derived %}( X ) sim&nbsp;&nbsp;(&nbsp;&nbsp;) não{% else %}(&nbsp;&nbsp;) sim&nbsp;&nbsp;( X ) não{% endif %}
+    </td>
+  </tr>
+  {% if pi.is_derived %}
+  <tr>
+    <td colspan="2">
+      <strong>Título do programa original:</strong> {{ pi.derived_title or '' }}
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2">
+      <strong>Número do registro original:</strong> {{ pi.derived_registration or '' }}
+    </td>
+  </tr>
+  {% endif %}
+</table>
+
+<table style="margin-top:10pt;">
+  <tr>
+    <td colspan="2" style="background:#e8e8e8;">
+      <strong>Autor Principal – Contato NIT</strong>
+    </td>
+  </tr>
+  <tr><td colspan="2"><strong>Nome:</strong> {{ primary.name if primary else '' }}</td></tr>
+  <tr>
+    <td style="width:50%;"><strong>CPF:</strong> {{ pp.cpf if pp else '' }}</td>
+    <td><strong>Celular:</strong> {{ pp.cellphone if pp else '' }}</td>
+  </tr>
+  <tr><td colspan="2"><strong>E-mail:</strong> {{ primary.email if primary else '' }}</td></tr>
+</table>
+
+<table style="margin-top:10pt;">
+  <tr>
+    <td><strong>Número de autores:</strong> {{ pi.authors|length }}</td>
+  </tr>
+  <tr>
+    <td><strong>Descrição do programa:</strong></td>
+  </tr>
+  <tr>
+    <td style="min-height:40pt;">{{ pi.description or '' }}</td>
+  </tr>
+</table>
+
+<p style="margin-top:10pt; font-size:10pt;">
+  <strong>Houve participação de outra instituição no desenvolvimento?</strong>
+  {% if pi.has_partner %}( X ) sim&nbsp;&nbsp;(&nbsp;&nbsp;) não{% else %}(&nbsp;&nbsp;) sim&nbsp;&nbsp;( X ) não{% endif %}
+</p>
+
+{% if pi.has_partner %}
+<table style="margin-top:4pt;">
+  <tr><td><strong>Nome:</strong> {{ pi.partner_name or '' }}</td></tr>
+  <tr><td><strong>CNPJ:</strong> {{ pi.partner_cnpj or '' }}</td></tr>
+  <tr><td><strong>Telefone do NIT ou outro contato:</strong> {{ pi.partner_contact or '' }}</td></tr>
+</table>
+{% endif %}
+
+{% endblock %}
