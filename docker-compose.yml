@@ -33,6 +33,7 @@ services:
       - ./:/app
       - rpi_pdfs:/app/storage/pdfs
       - rpi_author_documents:/app/storage/author_documents
+      - rpi_pi_files:/app/storage/pi_files
 
   adminer:
     image: adminer:latest
@@ -47,3 +48,4 @@ volumes:
   rpi_pgdata:
   rpi_pdfs:
   rpi_author_documents:
+  rpi_pi_files:

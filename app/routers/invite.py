@@ -21,7 +21,7 @@ from app.models import (
 )
 from app.services.author_documents_service import save_required_upload
 from app.services.invitations import find_valid_invitation, mark_used
-from app.templating import IFMS_BOND_LABELS, templates
+from app.templating import IFMS_BOND_LABELS, IFMS_CAMPUSES, templates
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -35,11 +35,12 @@ def _load_inv(db: Session, token: str):
     inv = find_valid_invitation(db, token)
     if not inv:
         return None
+    from app.models import PI
     pa = (
         db.query(PIAuthor)
         .options(
             selectinload(PIAuthor.profile),
-            selectinload(PIAuthor.pi),
+            selectinload(PIAuthor.pi).selectinload(PI.authors).selectinload(PIAuthor.profile),
         )
         .filter(PIAuthor.id == inv.pi_author_id)
         .first()
@@ -74,6 +75,7 @@ async def invite_form(token: str, request: Request, db: Session = Depends(get_db
             "pi": pa.pi,
             "profile": profile,
             "ifms_bonds": IFMS_BOND_LABELS,
+            "ifms_campuses": IFMS_CAMPUSES,
             "errors": [],
             "expires_at": inv.expires_at,
         },
@@ -179,6 +181,7 @@ async def invite_submit(token: str, request: Request, db: Session = Depends(get_
                 "pi": pa.pi,
                 "profile": pa.profile,
                 "ifms_bonds": IFMS_BOND_LABELS,
+                "ifms_campuses": IFMS_CAMPUSES,
                 "errors": errors,
                 "expires_at": inv.expires_at,
                 "submitted": fields,
@@ -191,6 +194,17 @@ async def invite_submit(token: str, request: Request, db: Session = Depends(get_
     profile = pa.profile
     values = {**fields, "ifms_bond": ifms_bond_enum, "birth_date": bd}
     values["ifms_bond_other"] = bond_other_txt if ifms_bond_enum == IfmsBond.outros else None
+
+    # Determine campus for coauthor based on institution and primary author's campus
+    if pa.institution == "ifms":
+        primary_author = next((a for a in pa.pi.authors if a.is_primary), None)
+        if primary_author and primary_author.profile:
+            values["campus"] = primary_author.profile.campus
+        else:
+            values["campus"] = None
+    else:
+        values["campus"] = bond_other_txt if ifms_bond_enum == IfmsBond.outros else None
+
     if profile is None:
         profile = AuthorProfile(pi_author_id=pa.id, **values)
         db.add(profile)
@@ -252,8 +266,7 @@ async def invite_submit(token: str, request: Request, db: Session = Depends(get_
 
     pi = pa.pi
     if all(p.status == PIAuthorStatus.completed for p in pi.authors):
-        pi.status = PIStatus.completed
-        pi.completed_at = _utcnow()
+        pi.status = PIStatus.awaiting_signatures
 
     db.commit()
 

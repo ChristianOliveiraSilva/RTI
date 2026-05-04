@@ -1,16 +1,23 @@
 {% extends "base.html" %}
-{% block title %}Nova Propriedade Intelectual{% endblock %}
+{% block title %}{% if edit_mode %}Editar PI{% else %}Nova Propriedade Intelectual{% endif %}{% endblock %}
 {% block content %}
 
 <div class="page-head">
   <div>
-    <h1>Nova Propriedade Intelectual</h1>
+    <h1>{% if edit_mode %}Editar Propriedade Intelectual{% else %}Nova Propriedade Intelectual{% endif %}</h1>
     <p class="muted">Preencha as informações da Propriedade Intelectual, seus dados como autor principal e adicione os coautores.</p>
   </div>
   <div>
     <a href="/dashboard" class="btn btn-ghost">Cancelar</a>
   </div>
 </div>
+
+{% if edit_mode and admin_notes %}
+  <div class="alert" style="border-left: 4px solid var(--warning, #f59e0b); background: #fffbeb; margin-bottom:16px;">
+    <strong>Observações do administrador:</strong>
+    <p>{{ admin_notes }}</p>
+  </div>
+{% endif %}
 
 {% if errors %}
   <div class="alert alert-error">
@@ -19,7 +26,7 @@
   </div>
 {% endif %}
 
-<form method="post" action="/pis" class="card form-card" id="pi-form" enctype="multipart/form-data">
+<form method="post" action="{% if edit_mode %}/pis/{{ pi_id }}/edit{% else %}/pis{% endif %}" class="card form-card" id="pi-form" enctype="multipart/form-data">
 
   <fieldset>
     <legend>Dados da Propriedade Intelectual</legend>
@@ -32,7 +39,7 @@
     <div class="form-grid-2">
       <div class="form-row">
         <label>Tipo *</label>
-        <select name="type" required>
+        <select name="type" id="pi-type-select" required>
           {% for k, label in pi_types.items() %}
             <option value="{{ k }}" {% if form.type == k %}selected{% endif %}>{{ label }}</option>
           {% endfor %}
@@ -51,12 +58,13 @@
     </div>
   </fieldset>
 
-  <fieldset>
+  {# ============== SOFTWARE SECTION ============== #}
+  <fieldset id="software-section" {% if form.type != "software" %}style="display:none"{% endif %}>
     <legend>Dados do Programa (Anexo I)</legend>
 
     <div class="form-row">
       <label>Linguagem de Programação *</label>
-      <input type="text" name="programming_language" required value="{{ form.programming_language }}"
+      <input type="text" name="programming_language" value="{{ form.programming_language }}"
              placeholder="Ex: Python, Java, JavaScript" />
     </div>
 
@@ -72,23 +80,25 @@
     </div>
 
     <div class="form-row">
-      <label>
-        Campo de Aplicação *
-        <a href="https://www.gov.br/inpi/pt-br/assuntos/programas-de-computador/campo_de_aplicacao.pdf"
-           target="_blank" rel="noopener noreferrer" class="muted small" style="margin-left:4px;">(veja lista de referência INPI)</a>
-      </label>
-      <input type="text" name="application_field" required value="{{ form.application_field }}"
-             placeholder="Ex: IN-01 Administração e Negócios" />
+      <label>Campo de Aplicação *</label>
+      <input type="text" name="application_field" value="{{ form.application_field }}"
+             list="application-fields-list" placeholder="Digite ou selecione..." />
+      <datalist id="application-fields-list">
+        {% for af in APPLICATION_FIELDS %}
+          <option value="{{ af }}">
+        {% endfor %}
+      </datalist>
     </div>
 
     <div class="form-row">
-      <label>
-        Tipo de Programa *
-        <a href="https://www.gov.br/inpi/pt-br/assuntos/programas-de-computador/tipos_de_programa.pdf"
-           target="_blank" rel="noopener noreferrer" class="muted small" style="margin-left:4px;">(veja lista referência INPI)</a>
-      </label>
-      <input type="text" name="program_type" required value="{{ form.program_type }}"
-             placeholder="Ex: TP-01 Aplicativo" />
+      <label>Tipo de Programa *</label>
+      <input type="text" name="program_type" value="{{ form.program_type }}"
+             list="program-types-list" placeholder="Digite ou selecione..." />
+      <datalist id="program-types-list">
+        {% for pt in PROGRAM_TYPES %}
+          <option value="{{ pt }}">
+        {% endfor %}
+      </datalist>
     </div>
 
     <div class="form-row">
@@ -97,7 +107,7 @@
         <a href="https://emn178.github.io/online-tools/sha512_file_hash.html"
            target="_blank" class="muted small" style="margin-left:4px;">(gerar hash online)</a>
       </label>
-      <input type="text" name="source_hash" required value="{{ form.source_hash }}"
+      <input type="text" name="source_hash" value="{{ form.source_hash }}"
              placeholder="Cole o hash SHA-512 do código-fonte aqui" />
     </div>
 
@@ -120,6 +130,91 @@
         </div>
       </div>
     </div>
+
+    <div class="form-row" style="margin-top:12px;">
+      <label>Vídeo ou Manual do Sistema</label>
+      <input type="file" name="video_file" accept=".mp4,.avi,.mkv,.pdf,.docx,.zip,.rar" />
+      <div class="muted small">MP4/AVI/PDF/DOCX/ZIP. Máx 200MB.</div>
+    </div>
+
+    <div class="form-row">
+      <label>Upload do Código Fonte (ZIP) *</label>
+      <input type="file" name="source_code_file" accept=".zip,.rar,.7z,.tar,.gz" />
+      <div class="muted small">ZIP/RAR/7Z/TAR/GZ. Máx 200MB.</div>
+    </div>
+  </fieldset>
+
+  {# ============== MARCA SECTION ============== #}
+  <fieldset id="marca-section" {% if form.type != "marca" %}style="display:none"{% endif %}>
+    <legend>Dados do Registro de Marca</legend>
+
+    <div class="form-row">
+      <label>Nome da Marca *</label>
+      <input type="text" name="marca_nome" value="{{ form.marca_nome }}" placeholder="Nome da marca" />
+    </div>
+
+    <div class="form-row">
+      <label>Tipo de Marca *</label>
+      <select name="marca_tipo">
+        <option value="">Selecione...</option>
+        <option value="nominativa" {% if form.marca_tipo == "nominativa" %}selected{% endif %}>Nominativa</option>
+        <option value="figurativa" {% if form.marca_tipo == "figurativa" %}selected{% endif %}>Figurativa</option>
+        <option value="mista" {% if form.marca_tipo == "mista" %}selected{% endif %}>Mista</option>
+      </select>
+    </div>
+
+    <div class="form-row">
+      <label>Imagem da Marca (300x300, para figurativa ou mista)</label>
+      <input type="file" name="marca_imagem_file" accept=".jpg,.jpeg,.png,.gif,.svg,.webp" />
+      <div class="muted small">JPG/PNG/GIF/SVG/WEBP. Máx 10MB.</div>
+    </div>
+
+    <label class="checkbox">
+      <input type="checkbox" name="marca_idioma_estrangeiro" id="marca_idioma_estrangeiro"
+             {% if form.marca_idioma_estrangeiro %}checked{% endif %}
+             onchange="document.getElementById('marca-estrangeiro-block').style.display = this.checked ? 'block' : 'none';" />
+      <span>A marca possui elementos em idioma estrangeiro?</span>
+    </label>
+
+    <div id="marca-estrangeiro-block" {% if not form.marca_idioma_estrangeiro %}style="display:none"{% endif %}>
+      <div class="form-grid-2">
+        <div class="form-row">
+          <label>Termo estrangeiro</label>
+          <input type="text" name="marca_termo_estrangeiro" value="{{ form.marca_termo_estrangeiro }}" />
+        </div>
+        <div class="form-row">
+          <label>Tradução</label>
+          <input type="text" name="marca_traducao" value="{{ form.marca_traducao }}" />
+        </div>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <label>Termos utilizados para busca de colidência</label>
+      <textarea name="marca_termos_colidencia" rows="2">{{ form.marca_termos_colidencia }}</textarea>
+    </div>
+
+    <div class="form-grid-2">
+      <div class="form-row">
+        <label>Classificação de NICE</label>
+        <input type="text" name="marca_nice" value="{{ form.marca_nice }}" />
+      </div>
+      <div class="form-row">
+        <label>Classificação de Viena</label>
+        <input type="text" name="marca_viena" value="{{ form.marca_viena }}" />
+      </div>
+    </div>
+
+    <label class="checkbox">
+      <input type="checkbox" name="marca_protecao_indicada"
+             {% if form.marca_protecao_indicada %}checked{% endif %} />
+      <span>Indicada a proteção?</span>
+    </label>
+
+    <div class="form-row">
+      <label>Justificativa</label>
+      <textarea name="marca_protecao_justificativa" rows="2">{{ form.marca_protecao_justificativa }}</textarea>
+    </div>
   </fieldset>
 
   <fieldset>
@@ -135,7 +230,7 @@
     <div id="partner-block" {% if not form.has_partner %}style="display:none"{% endif %}>
       <p class="muted small" style="margin-bottom:10px;">
         A participação da instituição parceira no Anexo IV é a <strong>soma das %</strong> dos coautores
-        cuja instituição for “Instituição parceira” (você como autor principal permanece vinculado ao IFMS).
+        cuja instituição for "Instituição parceira" (você como autor principal permanece vinculado ao IFMS).
       </p>
       <div class="form-grid-2">
         <div class="form-row">
@@ -189,6 +284,7 @@
       </div>
     </div>
 
+    {% if not edit_mode %}
     <div class="form-grid-2">
       <div class="form-row">
         <label>Documento CPF (upload) *</label>
@@ -217,6 +313,7 @@
         </div>
       </div>
     </div>
+    {% endif %}
 
     <div class="form-grid-3">
       <div class="form-row">
@@ -313,8 +410,18 @@
       <input type="text" name="ifms_bond_other" value="{{ primary.ifms_bond_other }}"
              placeholder="Descreva seu vínculo com o IFMS" maxlength="255" autocomplete="off" />
     </div>
+    <div id="campus-row" class="form-row" style="display:none">
+      <label>Campus IFMS *</label>
+      <select name="campus" id="campus-select">
+        <option value="">Selecione o campus...</option>
+        {% for c in ifms_campuses %}
+          <option value="{{ c }}" {% if primary.campus == c %}selected{% endif %}>{{ c }}</option>
+        {% endfor %}
+      </select>
+    </div>
   </fieldset>
 
+  {% if not edit_mode %}
   <fieldset>
     <legend>Declarações obrigatórias</legend>
     <label class="checkbox">
@@ -328,6 +435,7 @@
       <span>Aceito o termo de confidencialidade (Anexo V).</span>
     </label>
   </fieldset>
+  {% endif %}
 
   {# ============================================================== #}
   {# COAUTORES (recebem convite por email)                           #}
@@ -358,22 +466,65 @@
 
   <div class="form-actions">
     <a href="/dashboard" class="btn btn-ghost">Cancelar</a>
-    <button type="submit" class="btn btn-primary">Criar Propriedade Intelectual e enviar convites</button>
+    <button type="submit" class="btn btn-primary" id="pi-form-submit">
+      {% if edit_mode %}Salvar correções e resubmeter{% else %}Criar Propriedade Intelectual e enviar convites{% endif %}
+    </button>
   </div>
 </form>
 
+{% if edit_mode %}
 <script>
   (function () {
+    var f = document.getElementById("pi-form");
+    var btn = document.getElementById("pi-form-submit");
+    if (f && btn) {
+      f.addEventListener("submit", function () {
+        btn.disabled = true;
+        btn.textContent = "Enviando…";
+      });
+    }
+  })();
+</script>
+{% endif %}
+
+<script>
+  (function () {
+    // Type-dependent section visibility
+    var typeSelect = document.getElementById("pi-type-select");
+    var softwareSection = document.getElementById("software-section");
+    var marcaSection = document.getElementById("marca-section");
+
+    function syncTypeSections() {
+      if (!typeSelect) return;
+      var val = typeSelect.value;
+      if (softwareSection) softwareSection.style.display = val === "software" ? "" : "none";
+      if (marcaSection) marcaSection.style.display = val === "marca" ? "" : "none";
+    }
+    if (typeSelect) {
+      typeSelect.addEventListener("change", syncTypeSections);
+      syncTypeSections();
+    }
+
+    // IFMS bond + campus logic
     var sel = document.getElementById("ifms_bond");
     var row = document.getElementById("ifms-bond-other-row");
+    var campusRow = document.getElementById("campus-row");
+
     function syncIfmsBondOther() {
-      if (!sel || !row) return;
-      var on = sel.value === "outros";
-      row.style.display = on ? "block" : "none";
-      var inp = row.querySelector('input[name="ifms_bond_other"]');
-      if (inp) {
-        if (on) inp.setAttribute("required", "required");
-        else inp.removeAttribute("required");
+      if (!sel) return;
+      var isOutros = sel.value === "outros";
+      var isIfms = sel.value && !isOutros;
+
+      if (row) {
+        row.style.display = isOutros ? "block" : "none";
+        var inp = row.querySelector('input[name="ifms_bond_other"]');
+        if (inp) {
+          if (isOutros) inp.setAttribute("required", "required");
+          else inp.removeAttribute("required");
+        }
+      }
+      if (campusRow) {
+        campusRow.style.display = isIfms ? "block" : "none";
       }
     }
     if (sel) {

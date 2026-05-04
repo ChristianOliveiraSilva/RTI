@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}Painel Admin{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <h1>Painel Administrativo</h1>
+    <p class="muted">Gerenciamento de Propriedades Intelectuais</p>
+  </div>
+  <div>
+    <a href="/dashboard" class="btn btn-ghost">← Dashboard</a>
+  </div>
+</div>
+
+{# Notifications Section #}
+<section class="card mt-2">
+  <div style="display:flex; justify-content:space-between; align-items:center;">
+    <h2>
+      Notificações
+      {% if unread_count > 0 %}
+        <span class="badge badge-pending">{{ unread_count }}</span>
+      {% endif %}
+    </h2>
+    {% if unread_count > 0 %}
+      <button class="btn btn-ghost btn-sm"
+              hx-post="/admin/notifications/read-all"
+              hx-target="this"
+              hx-swap="outerHTML">
+        Marcar todas como lidas
+      </button>
+    {% endif %}
+  </div>
+
+  {% if notifications %}
+    <div class="notif-list" style="max-height:200px; overflow-y:auto;">
+      {% for n in notifications %}
+        <div class="notif-item {% if not n.is_read %}notif-unread{% endif %}" style="padding:6px 0; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <span class="small">{{ n.created_at|fdatetime_ms }}</span>
+            —
+            <a href="/pis/{{ n.pi_id }}">{{ n.message or "Nova notificação" }}</a>
+          </div>
+          {% if not n.is_read %}
+            <button class="btn btn-ghost btn-sm"
+                    hx-post="/admin/notifications/{{ n.id }}/read"
+                    hx-target="closest .notif-item"
+                    hx-swap="outerHTML"
+                    title="Marcar como lida">✓</button>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="muted">Nenhuma notificação.</p>
+  {% endif %}
+</section>
+
+{# Filters #}
+<section class="card mt-2">
+  <h2>Propriedades Intelectuais</h2>
+  <form method="get" action="/admin" style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px;">
+    <select name="campus" class="input" style="max-width:200px;">
+      <option value="">Todos os campus</option>
+      {% for c in campuses %}
+        <option value="{{ c }}" {% if campus_filter == c %}selected{% endif %}>{{ c }}</option>
+      {% endfor %}
+    </select>
+    <select name="status" class="input" style="max-width:200px;">
+      <option value="">Todos os status</option>
+      {% for k, v in status_labels.items() %}
+        {% if k != "pending" %}
+          <option value="{{ k }}" {% if status_filter == k %}selected{% endif %}>{{ v }}</option>
+        {% endif %}
+      {% endfor %}
+    </select>
+    <button class="btn btn-primary" type="submit">Filtrar</button>
+    {% if campus_filter or status_filter %}
+      <a href="/admin" class="btn btn-ghost">Limpar</a>
+    {% endif %}
+  </form>
+
+  {% if not pis %}
+    <p class="muted">Nenhuma PI encontrada com os filtros selecionados.</p>
+  {% else %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Título</th>
+          <th>Tipo</th>
+          <th>Campus</th>
+          <th>Status</th>
+          <th>Responsável</th>
+          <th>Criada em</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for pi in pis %}
+          {% set primary_author = pi.authors|selectattr("is_primary")|first %}
+          {% set pi_campus = primary_author.profile.campus if primary_author and primary_author.profile else "-" %}
+          <tr id="pi-row-{{ pi.id }}">
+            <td><a href="/pis/{{ pi.id }}">{{ pi.title }}</a></td>
+            <td>{{ pi.type|pi_type_label }}</td>
+            <td>{{ pi_campus or "-" }}</td>
+            <td><span class="badge badge-{{ pi.status.value }}">{{ pi.status|status_label }}</span></td>
+            <td>{{ pi.owner.name }}<br><span class="muted small">{{ pi.owner.email }}</span></td>
+            <td>{{ pi.created_at|fdatetime_ms }}</td>
+            <td>
+              <div style="display:flex; gap:4px; flex-wrap:wrap;">
+                {% if pi.status.value in ("completed", "awaiting_signatures") %}
+                  <button class="btn btn-ghost btn-sm"
+                          onclick="document.getElementById('correction-modal-{{ pi.id }}').showModal()">
+                    Devolver
+                  </button>
+                {% endif %}
+                <button class="btn btn-ghost btn-sm" style="color:var(--danger);"
+                        hx-post="/admin/pis/{{ pi.id }}/delete"
+                        hx-target="#pi-row-{{ pi.id }}"
+                        hx-swap="outerHTML"
+                        hx-confirm="Tem certeza que deseja remover esta PI?">
+                  Remover
+                </button>
+              </div>
+
+              {# Correction modal #}
+              {% if pi.status.value in ("completed", "awaiting_signatures") %}
+                <dialog id="correction-modal-{{ pi.id }}" style="padding:20px; border-radius:8px; border:1px solid var(--border); max-width:500px;">
+                  <form method="post" action="/admin/pis/{{ pi.id }}/return-for-correction">
+                    <h3>Devolver para correção</h3>
+                    <p class="muted">PI: {{ pi.title }}</p>
+                    <label for="admin_notes_{{ pi.id }}">Observações para o autor:</label>
+                    <textarea name="admin_notes" id="admin_notes_{{ pi.id }}" class="input" rows="4" style="width:100%; margin-top:8px;"></textarea>
+                    <div style="margin-top:12px; display:flex; gap:8px; justify-content:flex-end;">
+                      <button type="button" class="btn btn-ghost" onclick="this.closest('dialog').close()">Cancelar</button>
+                      <button type="submit" class="btn btn-primary">Devolver para correção</button>
+                    </div>
+                  </form>
+                </dialog>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+</section>
+
+{% endblock %}

@@ -10,6 +10,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
+from app.routers import admin as admin_router
 from app.routers import auth as auth_router
 from app.routers import dashboard as dashboard_router
 from app.routers import invite as invite_router
@@ -56,6 +57,7 @@ def create_app() -> FastAPI:
     app.include_router(pi_router.router)
     app.include_router(invite_router.router)
     app.include_router(pdf_router.router)
+    app.include_router(admin_router.router)
 
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(request: Request, exc: StarletteHTTPException):

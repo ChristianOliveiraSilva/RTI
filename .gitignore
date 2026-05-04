@@ -37,6 +37,8 @@ storage/pdfs/*
 !storage/pdfs/.gitkeep
 storage/author_documents/*
 !storage/author_documents/.gitkeep
+storage/pi_files/*
+!storage/pi_files/.gitkeep
 
 # Logs
 *.log

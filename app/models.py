@@ -30,6 +30,8 @@ class UserRole(str, enum.Enum):
 class PIStatus(str, enum.Enum):
     draft = "draft"
     awaiting_authors = "awaiting_authors"
+    awaiting_signatures = "awaiting_signatures"
+    awaiting_corrections = "awaiting_corrections"
     completed = "completed"
 
 
@@ -60,6 +62,12 @@ class DocumentType(str, enum.Enum):
     anexo_iii = "anexo_iii"
     anexo_iv = "anexo_iv"
     anexo_v = "anexo_v"
+    registro_marca = "registro_marca"
+
+
+class NotificationType(str, enum.Enum):
+    new_pi = "new_pi"
+    correction_submitted = "correction_submitted"
 
 
 class AuthorDocumentType(str, enum.Enum):
@@ -115,6 +123,30 @@ class PI(Base):
     derived_title: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     derived_registration: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
+    # Software-only uploads
+    video_path: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    video_original_filename: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    source_code_path: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    source_code_original_filename: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+    # Marca-only fields
+    marca_nome: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    marca_tipo: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    marca_imagem_path: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    marca_imagem_original_filename: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    marca_idioma_estrangeiro: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True, default=False)
+    marca_termo_estrangeiro: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    marca_traducao: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    marca_termos_colidencia: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    marca_nice: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    marca_viena: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    marca_protecao_indicada: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
+    marca_protecao_justificativa: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Admin / correction
+    admin_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -128,6 +160,9 @@ class PI(Base):
     )
     documents: Mapped[List["Document"]] = relationship(
         back_populates="pi", cascade="all, delete-orphan"
+    )
+    notifications: Mapped[List["AdminNotification"]] = relationship(
+        cascade="all, delete-orphan"
     )
 
 
@@ -200,6 +235,7 @@ class AuthorProfile(Base):
     address_zip: Mapped[str] = mapped_column(String(15), nullable=False)
     ifms_bond: Mapped[IfmsBond] = mapped_column(Enum(IfmsBond, name="ifms_bond"), nullable=False)
     ifms_bond_other: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    campus: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
@@ -251,6 +287,8 @@ class Document(Base):
     pi_author_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("pi_authors.id", ondelete="SET NULL"), nullable=True
     )
+    is_signed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    signed_file_path: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -280,3 +318,20 @@ class AuthorDocument(Base):
     )
 
     pi_author: Mapped["PIAuthor"] = relationship(back_populates="personal_documents")
+
+
+class AdminNotification(Base):
+    __tablename__ = "admin_notifications"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    pi_id: Mapped[int] = mapped_column(ForeignKey("pis.id", ondelete="CASCADE"), nullable=False)
+    type: Mapped[NotificationType] = mapped_column(
+        Enum(NotificationType, name="notification_type"), nullable=False
+    )
+    message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    is_read: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    pi: Mapped["PI"] = relationship()

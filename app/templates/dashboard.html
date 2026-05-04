@@ -14,6 +14,9 @@
     </p>
   </div>
   <div>
+    {% if is_admin %}
+      <a href="/admin" class="btn btn-ghost">Painel Admin</a>
+    {% endif %}
     <a href="/pis/new" class="btn btn-primary">+ Nova Propriedade Intelectual</a>
   </div>
 </div>

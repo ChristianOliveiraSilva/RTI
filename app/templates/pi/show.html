@@ -8,6 +8,9 @@
     <h1>{{ pi.title }}</h1>
     <div class="pi-meta">
       <span class="badge badge-{{ pi.status.value }}">{{ pi.status|status_label }}</span>
+      {% if pi.deleted_at %}
+        <span class="badge" style="background:#fee2e2;color:#991b1b;border:1px solid #fecaca;">Removida (admin)</span>
+      {% endif %}
       <span class="chip">{{ pi.type|pi_type_label }}</span>
       {% if pi.has_partner %}<span class="chip chip-info">Com parceria</span>{% endif %}
       <span class="muted small">criada em {{ pi.created_at|fdatetime_ms }}</span>
@@ -17,7 +20,9 @@
     </div>
   </div>
   <div class="actions">
-    {% if all_done %}
+    {% if not pi.deleted_at and pi.status.value == "awaiting_corrections" and is_owner %}
+      <a href="/pis/{{ pi.id }}/edit" class="btn btn-primary">Editar PI</a>
+    {% elif not pi.deleted_at and all_done and pi.status.value in ("awaiting_authors", "awaiting_signatures") %}
       <form method="post" action="/pis/{{ pi.id }}/pdfs/generate" style="display:inline">
         <button class="btn btn-primary">{% if pi.documents %}Regenerar PDFs{% else %}Gerar PDFs{% endif %}</button>
       </form>
@@ -26,13 +31,35 @@
           <button class="btn btn-ghost" type="button">Baixar tudo (.zip)</button>
         </a>
       {% endif %}
-    {% else %}
+    {% elif not pi.deleted_at and not all_done %}
       <button class="btn btn-primary" disabled title="Aguardando todos os coautores">Gerar PDFs</button>
     {% endif %}
   </div>
 </div>
 
-<section class="card">
+{% if pi.deleted_at %}
+  <div class="alert alert-error mt-2">
+    <strong>Esta PI foi removida do sistema.</strong>
+    Um administrador marcou este registro como excluído em {{ pi.deleted_at|fdatetime_ms }}.
+    Ela não aparece mais na listagem; os botões de ação foram desativados.
+  </div>
+{% endif %}
+
+{% if correcao_ja_enviada %}
+  <div class="alert mt-2" style="background:#eff6ff;border-left:4px solid #3b82f6;">
+    <strong>Correção já registrada.</strong>
+    <span class="muted">Se você clicou duas vezes em salvar ou voltou no navegador, a primeira submissão já foi processada. Nada a fazer aqui.</span>
+  </div>
+{% endif %}
+
+{% if pi.status.value == "awaiting_corrections" and pi.admin_notes %}
+  <div class="card mt-2" style="border-left: 4px solid var(--warning, #f59e0b); background: #fffbeb;">
+    <h3 style="margin:0 0 8px;">Devolvida para correção</h3>
+    <p style="margin:0;">{{ pi.admin_notes }}</p>
+  </div>
+{% endif %}
+
+<section class="card mt-2">
   <h2>Informações da Propriedade Intelectual</h2>
   <dl class="dl">
     <dt>Título</dt><dd>{{ pi.title }}</dd>
@@ -50,26 +77,74 @@
     {% if pi.description %}
       <dt>Descrição</dt><dd>{{ pi.description }}</dd>
     {% endif %}
-    {% if pi.programming_language %}
-      <dt>Linguagem</dt><dd>{{ pi.programming_language }}</dd>
+
+    {# Software-specific fields #}
+    {% if pi.type.value == "software" %}
+      {% if pi.programming_language %}
+        <dt>Linguagem</dt><dd>{{ pi.programming_language }}</dd>
+      {% endif %}
+      {% if pi.creation_date %}
+        <dt>Data de Criação</dt><dd>{{ pi.creation_date|fdate }}</dd>
+      {% endif %}
+      {% if pi.publication_date %}
+        <dt>Data de Publicação</dt><dd>{{ pi.publication_date|fdate }}</dd>
+      {% endif %}
+      {% if pi.application_field %}
+        <dt>Campo de Aplicação</dt><dd>{{ pi.application_field }}</dd>
+      {% endif %}
+      {% if pi.program_type %}
+        <dt>Tipo de Programa</dt><dd>{{ pi.program_type }}</dd>
+      {% endif %}
+      {% if pi.source_hash %}
+        <dt>Hash (SHA-512)</dt><dd style="word-break:break-all; font-size:0.85em;">{{ pi.source_hash }}</dd>
+      {% endif %}
+      {% if pi.is_derived %}
+        <dt>Derivado de</dt><dd>{{ pi.derived_title or '-' }} (Reg.: {{ pi.derived_registration or '-' }})</dd>
+      {% endif %}
+      {% if pi.video_path %}
+        <dt>Vídeo/Manual</dt>
+        <dd><a class="btn btn-ghost btn-sm" href="/pis/{{ pi.id }}/video/download">{{ pi.video_original_filename or "Baixar" }}</a></dd>
+      {% endif %}
+      {% if pi.source_code_path %}
+        <dt>Código Fonte</dt>
+        <dd><a class="btn btn-ghost btn-sm" href="/pis/{{ pi.id }}/source-code/download">{{ pi.source_code_original_filename or "Baixar" }}</a></dd>
+      {% endif %}
     {% endif %}
-    {% if pi.creation_date %}
-      <dt>Data de Criação</dt><dd>{{ pi.creation_date|fdate }}</dd>
-    {% endif %}
-    {% if pi.publication_date %}
-      <dt>Data de Publicação</dt><dd>{{ pi.publication_date|fdate }}</dd>
-    {% endif %}
-    {% if pi.application_field %}
-      <dt>Campo de Aplicação</dt><dd>{{ pi.application_field }}</dd>
-    {% endif %}
-    {% if pi.program_type %}
-      <dt>Tipo de Programa</dt><dd>{{ pi.program_type }}</dd>
-    {% endif %}
-    {% if pi.source_hash %}
-      <dt>Hash (SHA-512)</dt><dd style="word-break:break-all; font-size:0.85em;">{{ pi.source_hash }}</dd>
-    {% endif %}
-    {% if pi.is_derived %}
-      <dt>Derivado de</dt><dd>{{ pi.derived_title or '-' }} (Reg.: {{ pi.derived_registration or '-' }})</dd>
+
+    {# Marca-specific fields #}
+    {% if pi.type.value == "marca" %}
+      {% if pi.marca_nome %}
+        <dt>Nome da Marca</dt><dd>{{ pi.marca_nome }}</dd>
+      {% endif %}
+      {% if pi.marca_tipo %}
+        <dt>Tipo de Marca</dt><dd>{{ pi.marca_tipo|capitalize }}</dd>
+      {% endif %}
+      {% if pi.marca_imagem_path %}
+        <dt>Imagem da Marca</dt>
+        <dd><a class="btn btn-ghost btn-sm" href="/pis/{{ pi.id }}/marca-imagem/download">{{ pi.marca_imagem_original_filename or "Baixar" }}</a></dd>
+      {% endif %}
+      {% if pi.marca_idioma_estrangeiro %}
+        <dt>Idioma estrangeiro</dt><dd>Sim</dd>
+        {% if pi.marca_termo_estrangeiro %}
+          <dt>Termo</dt><dd>{{ pi.marca_termo_estrangeiro }}</dd>
+        {% endif %}
+        {% if pi.marca_traducao %}
+          <dt>Tradução</dt><dd>{{ pi.marca_traducao }}</dd>
+        {% endif %}
+      {% endif %}
+      {% if pi.marca_termos_colidencia %}
+        <dt>Termos de colidência</dt><dd>{{ pi.marca_termos_colidencia }}</dd>
+      {% endif %}
+      {% if pi.marca_nice %}
+        <dt>Classificação NICE</dt><dd>{{ pi.marca_nice }}</dd>
+      {% endif %}
+      {% if pi.marca_viena %}
+        <dt>Classificação Viena</dt><dd>{{ pi.marca_viena }}</dd>
+      {% endif %}
+      <dt>Proteção indicada</dt><dd>{{ "Sim" if pi.marca_protecao_indicada else "Não" }}</dd>
+      {% if pi.marca_protecao_justificativa %}
+        <dt>Justificativa</dt><dd>{{ pi.marca_protecao_justificativa }}</dd>
+      {% endif %}
     {% endif %}
   </dl>
 </section>
@@ -130,7 +205,7 @@
   {% else %}
     <table class="data-table">
       <thead>
-        <tr><th>Documento</th><th>Coautor</th><th>Gerado em</th><th></th></tr>
+        <tr><th>Documento</th><th>Coautor</th><th>Gerado em</th><th>Assinado?</th><th></th></tr>
       </thead>
       <tbody>
         {% for d in pi.documents %}
@@ -146,10 +221,39 @@
               {% endif %}
             </td>
             <td>{{ d.created_at|fdatetime_ms }}</td>
+            <td id="sign-status-{{ d.id }}">
+              {% if d.is_signed %}
+                <span class="badge badge-completed">Assinado</span>
+                {% if d.signed_file_path %}
+                  <a class="btn btn-ghost btn-sm" href="/pis/{{ pi.id }}/documents/{{ d.id }}/download-signed">Baixar assinado</a>
+                {% endif %}
+              {% else %}
+                <span class="badge badge-pending">Pendente</span>
+                {% if is_owner and pi.status.value == "awaiting_signatures" %}
+                  <form style="display:inline; margin-left:8px;"
+                        hx-post="/pis/{{ pi.id }}/documents/{{ d.id }}/upload-signed"
+                        hx-target="#sign-status-{{ d.id }}"
+                        hx-swap="innerHTML"
+                        hx-encoding="multipart/form-data"
+                        id="sign-form-{{ d.id }}">
+                    <input type="file" name="signed_file" accept=".pdf" required
+                           style="display:none;" id="sign-input-{{ d.id }}"
+                           onchange="this.closest('form').requestSubmit();">
+                    <label for="sign-input-{{ d.id }}" class="btn btn-ghost btn-sm" style="cursor:pointer;">
+                      Selecionar arquivo assinado
+                    </label>
+                  </form>
+                {% endif %}
+              {% endif %}
+            </td>
             <td>
-              <a class="btn btn-ghost btn-sm" href="/pis/{{ pi.id }}/documents/{{ d.id }}/download">
-                Baixar PDF
-              </a>
+              {% if not d.is_signed %}
+                <a class="btn btn-ghost btn-sm" href="/pis/{{ pi.id }}/documents/{{ d.id }}/download">
+                  Baixar PDF
+                </a>
+              {% else %}
+                <span class="muted small">—</span>
+              {% endif %}
             </td>
           </tr>
         {% endfor %}

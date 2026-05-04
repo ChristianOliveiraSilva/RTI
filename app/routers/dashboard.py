@@ -31,7 +31,7 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
     q = db.query(PI).options(
         selectinload(PI.authors),
         selectinload(PI.documents),
-    )
+    ).filter(PI.deleted_at.is_(None))
     if user.role != UserRole.admin:
         q = q.filter(PI.owner_id == user.id)
     pis = q.order_by(PI.created_at.desc()).all()

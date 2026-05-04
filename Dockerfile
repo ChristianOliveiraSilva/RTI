@@ -28,7 +28,8 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 
 COPY . /app
 
-RUN mkdir -p /app/storage/pdfs /app/storage/author_documents && chmod +x /app/scripts/entrypoint.sh
+RUN mkdir -p /app/storage/pdfs /app/storage/author_documents /app/storage/pi_files \
+    && chmod +x /app/scripts/entrypoint.sh
 
 EXPOSE 8000
 

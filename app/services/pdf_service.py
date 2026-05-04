@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from weasyprint import HTML
 
 from app.config import settings
-from app.models import Document, DocumentType, PI, PIAuthorStatus
+from app.models import Document, DocumentType, PI, PIAuthorStatus, PIType
 from app.templating import templates
 
 logger = logging.getLogger(__name__)
@@ -126,6 +126,18 @@ def generate_all_pdfs(db: Session, pi: PI) -> list[Document]:
         )
     _replace_documents(db, pi, DocumentType.anexo_v, items)
     docs.extend(items)
+
+    # Registro de Marca (only for marca-type PIs)
+    if pi.type == PIType.marca:
+        out = os.path.join(pi_dir, f"registro_marca_{now_str}.pdf")
+        _render_pdf(
+            "pdfs/registro_marca.html",
+            {"pi": pi, "now": datetime.now(timezone.utc)},
+            out,
+        )
+        doc_marca = Document(pi_id=pi.id, type=DocumentType.registro_marca, pdf_path=out)
+        docs.append(doc_marca)
+        _replace_documents(db, pi, DocumentType.registro_marca, [doc_marca])
 
     return docs
 

@@ -46,6 +46,7 @@ class Settings(BaseSettings):
 
     pdf_storage_dir: str = "/app/storage/pdfs"
     author_documents_storage_dir: str = "/app/storage/author_documents"
+    pi_files_storage_dir: str = "/app/storage/pi_files"
 
     @property
     def admin_emails_list(self) -> List[str]:
